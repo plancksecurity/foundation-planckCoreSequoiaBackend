@@ -22,7 +22,8 @@ buffered-reader = "1"
 chrono = "0.4"
 configparser = "2"
 csv = "1.1"
-enumber = "0.2.1-alpha"
+# XXX: Until enumber is released with this commit.
+enumber = { git = "https://github.com/kinnison/enumber/", rev = "810972f23d5874edbb1761db8cb0f59dfb5dbfa9" }
 lazy_static = "1"
 libc = "0.2"
 lru = "0.6.6"
@@ -38,6 +39,3 @@ features = ["bundled", "collation", "blob"]
 
 [lib]
 crate-type = ["cdylib"]
-
-[patch.crates-io]
-enumber = { path = '/home/us/neal/src/enumber' }
