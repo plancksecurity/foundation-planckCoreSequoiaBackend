@@ -30,7 +30,7 @@ lru = "0.6.6"
 memmem = "0.1"
 memoffset = "0.6"
 num_cpus = "1"
-sequoia-openpgp = "1.1"
+sequoia-openpgp = "1.3"
 thiserror = "1"
 
 [dependencies.rusqlite]
