@@ -1,18 +1,17 @@
 [package]
-name = "sequoia-pep-engine-crypto"
-description = "Cryptographic backend for the PEP Engine"
+name = "pEpEngineSequoiaBackend"
+description = "An implementation of the p≡p Engine's cryptotech interface using Sequoia."
 version = "0.1.0"
 authors = ["Neal H. Walfield <neal@pep.foundation>"]
 homepage = "https://sequoia-pgp.org/"
-repository = "https://gitlab.com/sequoia-pgp/sequoia-pep-engine-crypto"
+repository = "https://gitea.pep.foundation/neal/pEpEngineSequoiaBackend/"
 readme = "README.md"
 keywords = ["cryptography", "openpgp", "pgp", "encryption", "signing"]
 categories = ["cryptography", "authentication", "email"]
-license = "GPL-2.0-or-later"
+license = "GPL-3.0-or-later"
 edition = "2018"
 
 [badges]
-gitlab = { repository = "sequoia-pgp/sequoia-pep-engine-crypto" }
 maintenance = { status = "actively-developed" }
 
 [dependencies]
