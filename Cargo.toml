@@ -1,0 +1,43 @@
+[package]
+name = "sequoia-pep-engine-crypto"
+description = "Cryptographic backend for the PEP Engine"
+version = "0.1.0"
+authors = ["Neal H. Walfield <neal@pep.foundation>"]
+homepage = "https://sequoia-pgp.org/"
+repository = "https://gitlab.com/sequoia-pgp/sequoia-pep-engine-crypto"
+readme = "README.md"
+keywords = ["cryptography", "openpgp", "pgp", "encryption", "signing"]
+categories = ["cryptography", "authentication", "email"]
+license = "GPL-2.0-or-later"
+edition = "2018"
+
+[badges]
+gitlab = { repository = "sequoia-pgp/sequoia-pep-engine-crypto" }
+maintenance = { status = "actively-developed" }
+
+[dependencies]
+anyhow = "1"
+backtrace = "0.3.61"
+buffered-reader = "1"
+chrono = "0.4"
+configparser = "2"
+csv = "1.1"
+enumber = "0.2.1-alpha"
+lazy_static = "1"
+libc = "0.2"
+lru = "0.6.6"
+memmem = "0.1"
+memoffset = "0.6"
+num_cpus = "1"
+sequoia-openpgp = "1.1"
+thiserror = "1"
+
+[dependencies.rusqlite]
+version = "0.25"
+features = ["bundled", "collation", "blob"]
+
+[lib]
+crate-type = ["cdylib"]
+
+[patch.crates-io]
+enumber = { path = '/home/us/neal/src/enumber' }
