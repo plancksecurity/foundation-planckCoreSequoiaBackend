@@ -1,0 +1,10 @@
+prefix=
+libdir=LIBDIR
+
+Name: pEpEngineSequoiaBackend
+Description: An implementation of the pEp Engine's crypttext interface using Sequoia
+URL: https://sequoia-pgp.org/
+Version: VERSION
+Requires: nettle
+Cflags:
+Libs: -L${libdir} -lpep_engine_sequoia_backend
