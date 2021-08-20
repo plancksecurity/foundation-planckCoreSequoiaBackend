@@ -11,11 +11,14 @@ use crate::Error;
 use crate::Keystore;
 use crate::PepCipherSuite;
 use crate::Result;
+use crate::{Malloc, Free};
 
 const MAGIC: u64 = 0xE3F3_05AD_48EE_0DF5;
 
 pub struct State {
     ks: Keystore,
+    malloc: Malloc,
+    free: Free,
     magic: u64,
 }
 
@@ -72,6 +75,8 @@ impl Session {
             version: ptr::null(),
             state: Box::into_raw(Box::new(State {
                 ks: Keystore::init_in_memory().unwrap(),
+                malloc: libc::malloc,
+                free: libc::free,
                 magic: MAGIC,
             })),
             curr_passphrase: ptr::null(),
@@ -82,12 +87,16 @@ impl Session {
     }
 
     pub fn init(&mut self,
-                ks: Keystore)
+                ks: Keystore,
+                malloc: Malloc,
+                free: Free)
     {
         assert!(self.state.is_null());
 
         self.state = Box::into_raw(Box::new(State {
             ks: ks,
+            malloc: malloc,
+            free: free,
             magic: MAGIC,
         }));
     }
@@ -110,6 +119,16 @@ impl Session {
     /// [`Session::set_keystore`].
     pub fn keystore(&mut self) -> &mut Keystore {
         &mut State::as_mut(self.state).ks
+    }
+
+    /// Returns the application's malloc routine.
+    pub fn malloc(&self) -> Malloc {
+        State::as_mut(self.state).malloc
+    }
+
+    /// Returns the application's free routine.
+    pub fn free(&self) -> Free {
+        State::as_mut(self.state).free
     }
 
     /// Returns the value of curr_passphrase.
@@ -190,7 +209,8 @@ mod tests {
             session.deinit();
 
             // If the state pointer is non-NULL, this will panic.
-            session.init(Keystore::init_in_memory().unwrap());
+            session.init(Keystore::init_in_memory().unwrap(),
+                         libc::malloc, libc::free);
             let ks = session.keystore() as *mut _;
             let ks2 = session.keystore() as *mut _;
             assert!(ptr::eq(ks, ks2));

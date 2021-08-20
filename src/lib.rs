@@ -22,7 +22,6 @@ use std::time::{
 use libc::{
     c_char,
     c_uint,
-    malloc,
     size_t,
     time_t,
 };
@@ -106,6 +105,8 @@ use pep::{
     Timestamp,
 };
 #[macro_use] mod ffi;
+use ffi::{Malloc, Free};
+
 mod keystore;
 use keystore::Keystore;
 mod buffer;
@@ -199,9 +200,12 @@ fn _pgp_get_decrypted_key_iter<'a, I>(iter: I, pass: Option<&Password>)
     }
 }
 
+
 // PEP_STATUS pgp_init(PEP_SESSION session, bool in_first)
 ffi!(fn pgp_init_(session: *mut Session, _in_first: bool,
                   per_user_directory: *const c_char,
+                  malloc: Malloc,
+                  free: Free,
                   session_size: c_uint,
                   session_cookie_offset: c_uint,
                   session_curr_passphrase_offset: c_uint,
@@ -273,7 +277,7 @@ ffi!(fn pgp_init_(session: *mut Session, _in_first: bool,
     };
 
     let ks = keystore::Keystore::init(Path::new(per_user_directory))?;
-    session.init(ks);
+    session.init(ks, malloc, free);
 
     Ok(())
 });
@@ -701,6 +705,7 @@ ffi!(fn pgp_decrypt_and_verify(session: *mut Session,
     -> Result<()>
 {
     let session = Session::as_mut(session);
+    let malloc = session.malloc();
 
     if ctext.is_null() {
         return Err(Error::IllegalValue(
@@ -943,6 +948,7 @@ ffi!(fn pgp_sign_only(
     -> Result<()>
 {
     let session = Session::as_mut(session);
+    let malloc = session.malloc();
 
     if fpr.is_null() {
         return Err(Error::IllegalValue(
@@ -1048,6 +1054,7 @@ fn pgp_encrypt_sign_optional(
     tracer!(*crate::TRACE, "pgp_encrypt_sign_optional");
 
     let session = Session::as_mut(session);
+    let malloc = session.malloc();
 
     if ptext.is_null() {
         return Err(Error::IllegalValue(
@@ -1679,6 +1686,7 @@ ffi!(fn pgp_export_keydata(session: *mut Session,
     -> Result<()>
 {
     let session = Session::as_mut(session);
+    let malloc = session.malloc();
 
     if fpr.is_null() {
         return Err(Error::IllegalValue("fpr must not be NULL".into()));
