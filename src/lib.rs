@@ -229,30 +229,46 @@ ffi!(fn pgp_init_(session: *mut Session, _in_first: bool,
     use std::mem::size_of;
     use memoffset::offset_of;
 
-    assert_eq!(magic, 0xDEADBEEF);
+    assert_eq!(magic, 0xDEADBEEF, "magic");
 
     assert!(session_size as usize >= size_of::<Session>());
     assert_eq!(session_cookie_offset as usize,
-               offset_of!(Session, state));
+               offset_of!(Session, state),
+               "session_cookie_offset");
     assert_eq!(session_curr_passphrase_offset as usize,
-               offset_of!(Session, curr_passphrase));
+               offset_of!(Session, curr_passphrase),
+               "session_curr_passphrase_offset");
     assert_eq!(session_new_key_pass_enable as usize,
-               offset_of!(Session, new_key_pass_enabled));
+               offset_of!(Session, new_key_pass_enabled),
+               "session_new_key_pass_enable");
     assert_eq!(session_generation_passphrase_offset as usize,
-               offset_of!(Session, generation_passphrase));
+               offset_of!(Session, generation_passphrase),
+               "session_generation_passphrase_offset");
     assert_eq!(session_cipher_suite_offset as usize,
-               offset_of!(Session, cipher_suite));
-    assert_eq!(pep_status_size as usize, size_of::<ErrorCode>());
-    assert_eq!(pep_comm_type_size as usize, size_of::<PepCommType>());
-    assert_eq!(pep_enc_format_size as usize, size_of::<PepEncFormat>());
-    assert_eq!(pep_identity_flags_size as usize, size_of::<PepIdentityFlags>());
-    assert_eq!(pep_cipher_suite_size as usize, size_of::<PepCipherSuite>());
-    assert_eq!(string_list_item_size as usize, size_of::<StringListItem>());
-    assert_eq!(pep_identity_size as usize, size_of::<PepIdentity>());
-    assert_eq!(pep_identity_list_item_size as usize, size_of::<PepIdentityListItem>());
-    assert_eq!(timestamp_size as usize, size_of::<Timestamp>());
-    // assert_eq!(stringpair_size as usize, size_of::<StringPair>());
-    // assert_eq!(stringpair_list_size as usize, size_of::<StringPairList>());
+               offset_of!(Session, cipher_suite),
+               "session_cipher_suite_offset");
+    assert_eq!(pep_status_size as usize, size_of::<ErrorCode>(),
+               "pep_status_size");
+    assert_eq!(pep_comm_type_size as usize, size_of::<PepCommType>(),
+               "pep_comm_type_size");
+    assert_eq!(pep_enc_format_size as usize, size_of::<PepEncFormat>(),
+               "pep_enc_format_size");
+    assert_eq!(pep_identity_flags_size as usize, size_of::<PepIdentityFlags>(),
+               "pep_identity_flags_size");
+    assert_eq!(pep_cipher_suite_size as usize, size_of::<PepCipherSuite>(),
+               "pep_cipher_suite_size");
+    assert_eq!(string_list_item_size as usize, size_of::<StringListItem>(),
+               "string_list_item_size");
+    assert_eq!(pep_identity_size as usize, size_of::<PepIdentity>(),
+               "pep_identity_size");
+    assert_eq!(pep_identity_list_item_size as usize, size_of::<PepIdentityListItem>(),
+               "pep_identity_list_item_size");
+    assert_eq!(timestamp_size as usize, size_of::<Timestamp>(),
+               "timestamp_size");
+    // assert_eq!(stringpair_size as usize, size_of::<StringPair>(),
+    //            "stringpair_size");
+    // assert_eq!(stringpair_list_size as usize, size_of::<StringPairList>(),
+    //            "stringpair_list_size");
 
     let session = Session::as_mut(session);
 
