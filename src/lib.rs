@@ -218,11 +218,14 @@ ffi!(fn pgp_init_(session: *mut Session, _in_first: bool,
                   pep_identity_list_item_size: c_uint,
                   timestamp_size: c_uint,
                   _stringpair_size: c_uint,
-                  _stringpair_list_size: c_uint)
+                  _stringpair_list_size: c_uint,
+                  magic: c_uint)
     -> Result<()>
 {
     use std::mem::size_of;
     use memoffset::offset_of;
+
+    assert_eq!(magic, 0xDEADBEEF);
 
     assert!(session_size as usize >= size_of::<Session>());
     assert_eq!(session_cookie_offset as usize,
