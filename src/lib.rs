@@ -1,12 +1,16 @@
 use std::cmp;
 use std::convert::TryInto;
 use std::env;
-use std::ffi::CStr;
+use std::ffi::{
+    CStr,
+    OsStr,
+};
 use std::io::{
     Read,
     Write,
 };
 use std::mem;
+use std::path::Path;
 use std::ptr;
 use std::slice;
 use std::time::{
@@ -197,6 +201,7 @@ fn _pgp_get_decrypted_key_iter<'a, I>(iter: I, pass: Option<&Password>)
 
 // PEP_STATUS pgp_init(PEP_SESSION session, bool in_first)
 ffi!(fn pgp_init_(session: *mut Session, _in_first: bool,
+                  per_user_directory: *const c_char,
                   session_size: c_uint,
                   session_cookie_offset: c_uint,
                   session_curr_passphrase_offset: c_uint,
@@ -241,7 +246,27 @@ ffi!(fn pgp_init_(session: *mut Session, _in_first: bool,
 
     let session = Session::as_mut(session);
 
-    let ks = keystore::Keystore::init()?;
+    if per_user_directory.is_null() {
+        return Err(Error::IllegalValue(
+            "per_user_directory may not be NULL".into()));
+    }
+    let per_user_directory = unsafe { CStr::from_ptr(per_user_directory) };
+
+    #[cfg(not(windows))]
+    let per_user_directory = {
+        use std::os::unix::ffi::OsStrExt;
+        OsStr::from_bytes(per_user_directory.to_bytes())
+    };
+    #[cfg(windows)]
+    let per_user_directory = {
+        use std::ffi::OsString;
+        use std::os::windows::prelude::*;
+
+        let os_string = OsString::from_wide(per_user_directory.as_bytes());
+        os_string.as_os_str()
+    };
+
+    let ks = keystore::Keystore::init(Path::new(per_user_directory))?;
     session.set_keystore(ks);
 
     Ok(())

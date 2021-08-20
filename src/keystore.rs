@@ -1,5 +1,6 @@
 use std::cmp;
 use std::env;
+use std::path::Path;
 use std::path::PathBuf;
 
 use rusqlite::{
@@ -157,8 +158,10 @@ impl Keystore {
     /// Initializes the key store.
     ///
     /// This opens the keys.db and initializes it, if necessary.
-    pub fn init() -> Result<Self> {
-        Self::init_(false)
+    pub fn init<P>(dir: P) -> Result<Self>
+        where P: AsRef<Path>
+    {
+        Self::init_(Some(dir.as_ref()))
     }
 
     /// Initializes an in-memory key store.
@@ -166,45 +169,22 @@ impl Keystore {
     /// This is used for the unit tests.
     #[cfg(test)]
     pub(crate) fn init_in_memory() -> Result<Self> {
-        Self::init_(true)
+        Self::init_(None)
     }
 
-    fn init_(in_memory: bool) -> Result<Self> {
-        let keys_db = PathBuf::new();
+    fn init_(home: Option<&Path>) -> Result<Self> {
+        let mut keys_db = PathBuf::new();
 
-        let conn = if in_memory {
-            wrap_err!(
-                Connection::open_in_memory(),
-                InitCannotOpenDB,
-                "Creating in-memory keys DB")?
-        } else {
-            let mut home: Option<PathBuf> = None;
+        let conn = if let Some(home) = home {
+            keys_db.push(home);
 
-            // Create the home directory.
             #[cfg(not(windows))]
-            {
-                if cfg!(debug_assertions) {
-                    home = env::var("PEP_HOME").ok().map(|s| PathBuf::from(s));
-                }
-                #[allow(deprecated)]
-                if home.is_none() {
-                    home = env::home_dir();
+            if cfg!(debug_assertions) {
+                if let Ok(pep_home) = env::var("PEP_HOME") {
+                    keys_db = PathBuf::from(pep_home);
                 }
             }
 
-            #[cfg(windows)]
-            {
-                // Get the home directory on Windows.
-                unimplemented!();
-            }
-
-            let home = match home {
-                None => return Err(Error::InitCryptoLibInitFailed(
-                    "HOME environment variable unset".into()).into()),
-                Some(home) => home,
-            };
-
-            let mut keys_db = home;
             for n in KEYS_DB {
                 keys_db.push(n);
             }
@@ -218,6 +198,12 @@ impl Keystore {
                         | OpenFlags::SQLITE_OPEN_PRIVATE_CACHE),
                 InitCannotOpenDB,
                 format!("Opening keys DB ('{}')", keys_db.display()))?
+        } else {
+            // Create an in-memory DB.
+            wrap_err!(
+                Connection::open_in_memory(),
+                InitCannotOpenDB,
+                "Creating in-memory keys DB")?
         };
 
         wrap_err!(
