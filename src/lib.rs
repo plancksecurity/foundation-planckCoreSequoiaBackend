@@ -216,7 +216,9 @@ ffi!(fn pgp_init_(session: *mut Session, _in_first: bool,
                   string_list_item_size: c_uint,
                   pep_identity_size: c_uint,
                   pep_identity_list_item_size: c_uint,
-                  timestamp_size: c_uint)
+                  timestamp_size: c_uint,
+                  _stringpair_size: c_uint,
+                  _stringpair_list_size: c_uint)
     -> Result<()>
 {
     use std::mem::size_of;
@@ -242,7 +244,8 @@ ffi!(fn pgp_init_(session: *mut Session, _in_first: bool,
     assert_eq!(pep_identity_size as usize, size_of::<PepIdentity>());
     assert_eq!(pep_identity_list_item_size as usize, size_of::<PepIdentityListItem>());
     assert_eq!(timestamp_size as usize, size_of::<Timestamp>());
-
+    // assert_eq!(stringpair_size as usize, size_of::<StringPair>());
+    // assert_eq!(stringpair_list_size as usize, size_of::<StringPairList>());
 
     let session = Session::as_mut(session);
 
