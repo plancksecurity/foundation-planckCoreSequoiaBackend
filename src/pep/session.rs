@@ -12,10 +12,49 @@ use crate::Keystore;
 use crate::PepCipherSuite;
 use crate::Result;
 
+const MAGIC: u64 = 0xE3F3_05AD_48EE_0DF5;
+
+pub struct State {
+    ks: Keystore,
+    magic: u64,
+}
+
+impl State {
+    /// Converts the raw pointer to a Rust reference.
+    ///
+    /// This does *not* take ownership of the object.
+    ///
+    /// Sanity checks the data structure.
+    pub fn as_mut(ptr: *mut Self) -> &'static mut Self {
+        let s = unsafe { ptr.as_mut() }.expect("NULL pointer");
+        assert_eq!(s.magic, MAGIC, "magic");
+
+        s
+    }
+
+    /// Converts a raw pointer back into a Rust object.
+    ///
+    /// Takes ownership of the object.
+    pub fn to_rust(ptr: *mut Self) -> Box<Self> {
+        assert!(! ptr.is_null());
+        let s = unsafe { Box::from_raw(ptr) };
+        assert_eq!(s.magic, MAGIC, "magic");
+
+        s
+    }
+
+    /// Converts the Rust object to a raw pointer.
+    ///
+    /// Transfers ownership to the caller.
+    pub fn to_c(self) -> *mut Self {
+        Box::into_raw(Box::new(self))
+    }
+}
+
 #[repr(C)]
 pub struct Session {
     pub version: *const u8,
-    pub ks: *mut Keystore,
+    pub state: *mut State,
     pub curr_passphrase: *const c_char,
     pub new_key_pass_enabled: bool,
     pub generation_passphrase: *const c_char,
@@ -31,12 +70,31 @@ impl Session {
     pub fn new() -> *mut Session {
         Box::into_raw(Box::new(Session {
             version: ptr::null(),
-            ks: ptr::null_mut(),
+            state: Box::into_raw(Box::new(State {
+                ks: Keystore::init_in_memory().unwrap(),
+                magic: MAGIC,
+            })),
             curr_passphrase: ptr::null(),
             new_key_pass_enabled: false,
             generation_passphrase: ptr::null(),
             cipher_suite: PepCipherSuite::Default,
         }))
+    }
+
+    pub fn init(&mut self,
+                ks: Keystore)
+    {
+        assert!(self.state.is_null());
+
+        self.state = Box::into_raw(Box::new(State {
+            ks: ks,
+            magic: MAGIC,
+        }));
+    }
+
+    pub fn deinit(&mut self) {
+        let _ = State::to_rust(self.state);
+        self.state = ptr::null_mut();
     }
 
     /// Converts the raw pointer to a Rust reference.
@@ -51,26 +109,7 @@ impl Session {
     /// This panics if the keystore has not yet been set (see
     /// [`Session::set_keystore`].
     pub fn keystore(&mut self) -> &mut Keystore {
-        Keystore::as_mut(self.ks)
-    }
-
-    /// Sets the keystore.
-    ///
-    /// This panics if a keystore has already been set.
-    ///
-    /// The keystore can be dropped using [`Session::drop_keystore`].
-    pub fn set_keystore(&mut self, ks: Keystore) {
-        assert!(self.ks.is_null());
-        self.ks = ks.to_c();
-    }
-
-    /// Drops the keystore.
-    ///
-    /// This panics if a keystore has already been set.
-    pub fn drop_keystore(&mut self) {
-        let _ = Keystore::to_rust(self.ks);
-        // Reset the pointer.
-        self.ks = ptr::null_mut() as *mut _;
+        &mut State::as_mut(self.state).ks
     }
 
     /// Returns the value of curr_passphrase.
@@ -137,26 +176,25 @@ impl Session {
 mod tests {
     use super::*;
 
-    // Make sure the pointer is cleared when the key store is dropped.
+    // Make sure the pointer is cleared when the state is dropped.
     #[test]
-    fn keystore() {
+    fn state() {
         let session = Session::new();
 
         {
             let session: &mut Session = Session::as_mut(session);
 
-            session.set_keystore(Keystore::init_in_memory().unwrap());
             let ks = session.keystore() as *mut _;
             let ks2 = session.keystore() as *mut _;
             assert!(ptr::eq(ks, ks2));
-            session.drop_keystore();
+            session.deinit();
 
-            // If the keystore pointer is non-NULL, this will panic.
-            session.set_keystore(Keystore::init_in_memory().unwrap());
+            // If the state pointer is non-NULL, this will panic.
+            session.init(Keystore::init_in_memory().unwrap());
             let ks = session.keystore() as *mut _;
             let ks2 = session.keystore() as *mut _;
             assert!(ptr::eq(ks, ks2));
-            session.drop_keystore();
+            session.deinit();
         }
 
         unsafe { Box::from_raw(session) };

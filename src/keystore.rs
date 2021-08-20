@@ -35,8 +35,6 @@ use crate::constants::{
 };
 use crate::pep::PepIdentityTemplate;
 
-const MAGIC: u64 = 0xE3F3_05AD_48EE_0DF5;
-
 // Pick the fastest hash function from the SHA2 family for the
 // architecture's word size.  On 64-bit architectures, SHA512 is
 // almost twice as fast, but on 32-bit ones, SHA256 is faster.
@@ -52,7 +50,6 @@ const CERT_CACHE_ENTRIES: usize = 32;
 type CertCache = LruCache<Vec<u8>, Cert>;
 
 pub struct Keystore {
-    magic: u64,
     conn: rusqlite::Connection,
     // The certificate cache.
     //
@@ -97,36 +94,6 @@ macro_rules! sql_stmt {
 }
 
 impl Keystore {
-    /// Converts the raw pointer to a Rust reference.
-    ///
-    /// This does *not* take ownership of the object.
-    ///
-    /// Sanity checks the data structure.
-    pub fn as_mut(ptr: *mut Self) -> &'static mut Self {
-        let ks = unsafe { ptr.as_mut() }.expect("NULL pointer");
-        assert_eq!(ks.magic, MAGIC, "magic");
-
-        ks
-    }
-
-    /// Converts a raw pointer back into a Rust object.
-    ///
-    /// Takes ownership of the object.
-    pub fn to_rust(ptr: *mut Self) -> Box<Self> {
-        assert!(! ptr.is_null());
-        let ks = unsafe { Box::from_raw(ptr) };
-        assert_eq!(ks.magic, MAGIC, "magic");
-
-        ks
-    }
-
-    /// Converts the Rust object to a raw pointer.
-    ///
-    /// Transfers ownership to the caller.
-    pub fn to_c(self) -> *mut Self {
-        Box::into_raw(Box::new(self))
-    }
-
     // Compares two User IDs.
     //
     // Extracts the email address or URI stored in each User ID and
@@ -271,7 +238,6 @@ impl Keystore {
                     keys_db.display()))?;
 
         Ok(Keystore {
-            magic: MAGIC,
             conn,
             cert_cache: LruCache::new(CERT_CACHE_ENTRIES),
         })

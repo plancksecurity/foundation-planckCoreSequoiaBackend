@@ -229,7 +229,7 @@ ffi!(fn pgp_init_(session: *mut Session, _in_first: bool,
 
     assert!(session_size as usize >= size_of::<Session>());
     assert_eq!(session_cookie_offset as usize,
-               offset_of!(Session, ks));
+               offset_of!(Session, state));
     assert_eq!(session_curr_passphrase_offset as usize,
                offset_of!(Session, curr_passphrase));
     assert_eq!(session_new_key_pass_enable as usize,
@@ -273,14 +273,14 @@ ffi!(fn pgp_init_(session: *mut Session, _in_first: bool,
     };
 
     let ks = keystore::Keystore::init(Path::new(per_user_directory))?;
-    session.set_keystore(ks);
+    session.init(ks);
 
     Ok(())
 });
 
 // void pgp_release(PEP_SESSION session, bool out_last)
 ffi!(fn pgp_release(session: *mut Session, _out_last: bool) -> Result<()> {
-    Session::as_mut(session).drop_keystore();
+    Session::as_mut(session).deinit();
     Ok(())
 });
 
