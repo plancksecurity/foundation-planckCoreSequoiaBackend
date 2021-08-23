@@ -1754,11 +1754,19 @@ ffi!(fn pgp_export_keydata(session: *mut Session,
     Ok(())
 });
 
+// XXX: The engine does not use this function directly
+// (OpenPGP_list_keyinfo is a thin wrapper) and there are no unit
+// tests that exercise it.  Once there are unit tests, we can add an
+// implementation.
+//
 // PEP_STATUS pgp_list_keyinfo(PEP_SESSION session,
 //                             const char* pattern,
 //                             stringpair_list_t** keyinfo_list)
 stub!(pgp_list_keyinfo);
 
+// The sequoia backend has never implemented this function, and the
+// engine does not currently use it.
+//
 // PEP_STATUS pgp_recv_key(PEP_SESSION session, const char *pattern)
 stub!(pgp_recv_key);
 
@@ -1826,6 +1834,9 @@ ffi!(fn pgp_find_private_keys(session: *mut Session,
     list_keys(session, pattern, keylistp, true)
 });
 
+// The sequoia backend has never implemented this function, and the
+// engine does not currently use it.
+//
 // PEP_STATUS pgp_send_key(PEP_SESSION session, const char *pattern)
 stub!(pgp_send_key);
 
