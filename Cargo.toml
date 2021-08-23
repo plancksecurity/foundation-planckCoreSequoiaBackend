@@ -28,6 +28,8 @@ lru = "0.6.6"
 memmem = "0.1"
 memoffset = "0.6"
 num_cpus = "1"
+# When bumping the version of Sequoia search the code for XXX to find
+# spots where we can take advantage of new features.
 sequoia-openpgp = "1.3"
 thiserror = "1"
 

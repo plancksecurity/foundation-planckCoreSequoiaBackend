@@ -597,6 +597,9 @@ impl Keystore {
             // key material is not serialized so it is not considered,
             // but we want to consider secret key material.  So, we
             // need to be a bit smarter.
+            //
+            // XXX: Starting in Sequoia 1.4 we will be able to do:
+            // cert.as_tsk() == other.as_tsk().
             match (current.is_tsk(), cert.is_tsk()) {
                 (true, true) =>
                     current.clone().into_packets().collect::<Vec<_>>()
