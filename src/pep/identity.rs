@@ -104,10 +104,13 @@ impl PepIdentity {
             panic!("Out of memory allocating a PepIdentity");
         };
         let ident = unsafe { &mut *(buffer as *mut Self) };
-        ident.address = rust_str_to_c_str(mm, &template.address);
-        ident.fpr = rust_str_to_c_str(mm, &template.fpr.to_hex());
+        ident.address = rust_str_to_c_str(mm, &template.address)
+            .expect("Out of memory allocating ident.address");
+        ident.fpr = rust_str_to_c_str(mm, &template.fpr.to_hex())
+            .expect("Out of memory allocating ident.fpr");
         if let Some(username) = template.username.as_ref() {
-            ident.username = rust_str_to_c_str(mm, username);
+            ident.username = rust_str_to_c_str(mm, username)
+                .expect("Out of memory allocating ident.username");
         }
         ident
     }
@@ -140,7 +143,11 @@ impl PepIdentity {
     /// Replaces the fingerprint.
     pub fn set_fingerprint(&mut self, mm: MM, fpr: Fingerprint) {
         unsafe { libc::free(self.fpr as *mut _) };
-        self.fpr = rust_str_to_c_str(mm, fpr.to_hex());
+        // Clear to avoid a dangling pointers if the following
+        // allocation fails.
+        self.fpr = ptr::null_mut();
+        self.fpr = rust_str_to_c_str(mm, fpr.to_hex())
+            .expect("Out of memory allocating fingerprint");
     }
 
     /// Returns the username (in RFC 2822 speak: the display name).

@@ -52,7 +52,8 @@ impl StringListItem {
     fn new<S: AsRef<str>>(mm: MM, value: S, next: *mut Self) -> &'static mut Self {
         let item = Self::empty(mm);
 
-        item.value = rust_str_to_c_str(mm, value);
+        item.value = rust_str_to_c_str(mm, value)
+            .expect("Out of memory allocating StringListItem");
         item.next = next;
 
         item
@@ -184,7 +185,8 @@ impl StringList {
 
             if item.value.is_null() {
                 // 2. head is not NULL, but head.value is NULL.
-                item.value = rust_str_to_c_str(mm, value);
+                item.value = rust_str_to_c_str(mm, value)
+                    .expect("Out of memory allocating StringList.value");
             } else {
                 // 3. neither head nor head.value are NULL.
                 assert!(item.next.is_null());

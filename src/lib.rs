@@ -803,13 +803,13 @@ ffi!(fn pgp_decrypt_and_verify(session: *mut Session,
     });
 
     if ! filename_ptr.is_null() {
-        unsafe { filename_ptr.as_mut() }.map(|p| {
+        if let Some(p) = unsafe { filename_ptr.as_mut() } {
             if let Some(filename) = h.filename.as_ref() {
-                *p = rust_bytes_to_c_str_lossy(mm, filename);
+                *p = rust_bytes_to_c_str_lossy(mm, filename)?;
             } else {
                 *p = ptr::null_mut();
             }
-        });
+        };
     }
 
     // **********************************
