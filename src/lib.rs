@@ -512,9 +512,8 @@ impl<'a> DecryptionHelper for &mut Helper<'a> {
         let mut bad_passphrase = None;
 
         if self.secret_keys_called {
-            // Prevent iterations, which isn't needed since we don't
-            // support SKESKs.
-            return Err(anyhow::anyhow!("SKESKs not supported"));
+            return Err(anyhow::anyhow!(
+                "Nested encryption containers not supported"));
         }
         self.secret_keys_called = true;
 
