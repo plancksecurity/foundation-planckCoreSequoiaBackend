@@ -9,6 +9,12 @@ pub type Free = unsafe extern "C" fn(*mut c_void);
 /// How to free the memory allocated by the callback.
 pub type Malloc = unsafe extern "C" fn(size_t) -> *mut c_void;
 
+#[derive(Copy, Clone)]
+pub struct MM {
+    pub malloc: Malloc,
+    pub free: Free,
+}
+
 // Wraps an ffi function.
 //
 // This wrapper allows the function to return a Result.  The Ok

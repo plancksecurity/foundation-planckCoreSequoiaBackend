@@ -105,7 +105,7 @@ use pep::{
     Timestamp,
 };
 #[macro_use] mod ffi;
-use ffi::{Malloc, Free};
+use ffi::MM;
 
 mod keystore;
 use keystore::Keystore;
@@ -204,8 +204,8 @@ fn _pgp_get_decrypted_key_iter<'a, I>(iter: I, pass: Option<&Password>)
 // PEP_STATUS pgp_init(PEP_SESSION session, bool in_first)
 ffi!(fn pgp_init_(session: *mut Session, _in_first: bool,
                   per_user_directory: *const c_char,
-                  malloc: Malloc,
-                  free: Free,
+                  malloc: ffi::Malloc,
+                  free: ffi::Free,
                   session_size: c_uint,
                   session_cookie_offset: c_uint,
                   session_curr_passphrase_offset: c_uint,
@@ -293,7 +293,7 @@ ffi!(fn pgp_init_(session: *mut Session, _in_first: bool,
     };
 
     let ks = keystore::Keystore::init(Path::new(per_user_directory))?;
-    session.init(ks, malloc, free);
+    session.init(MM { malloc, free }, ks);
 
     Ok(())
 });
@@ -331,11 +331,13 @@ struct Helper<'a> {
 
 impl<'a> Helper<'a> {
     fn new(session: &'a mut Session) -> Self {
+        let mm = session.mm();
+
         Helper {
             session: session,
             secret_keys_called: false,
-            recipient_keylist: StringList::empty(),
-            signer_keylist: StringList::empty(),
+            recipient_keylist: StringList::empty(mm),
+            signer_keylist: StringList::empty(mm),
             good_checksums: 0,
             malformed_signature: 0,
             missing_keys: 0,
@@ -720,7 +722,8 @@ ffi!(fn pgp_decrypt_and_verify(session: *mut Session,
     -> Result<()>
 {
     let session = Session::as_mut(session);
-    let malloc = session.malloc();
+    let mm = session.mm();
+    let malloc = mm.malloc;
 
     if ctext.is_null() {
         return Err(Error::IllegalValue(
@@ -796,13 +799,13 @@ ffi!(fn pgp_decrypt_and_verify(session: *mut Session,
     h.signer_keylist.append(&mut h.recipient_keylist);
 
     unsafe { keylistp.as_mut() }.map(|p| {
-        *p = mem::replace(&mut h.signer_keylist, StringList::empty()).to_c();
+        *p = mem::replace(&mut h.signer_keylist, StringList::empty(mm)).to_c();
     });
 
     if ! filename_ptr.is_null() {
         unsafe { filename_ptr.as_mut() }.map(|p| {
             if let Some(filename) = h.filename.as_ref() {
-                *p = rust_bytes_to_c_str_lossy(filename);
+                *p = rust_bytes_to_c_str_lossy(mm, filename);
             } else {
                 *p = ptr::null_mut();
             }
@@ -846,6 +849,7 @@ ffi!(fn pgp_verify_text(session: *mut Session,
     -> Result<()>
 {
     let session = Session::as_mut(session);
+    let mm = session.mm();
 
     if size == 0 || sig_size == 0 {
         return Err(Error::DecryptWrongFormat);
@@ -921,7 +925,7 @@ ffi!(fn pgp_verify_text(session: *mut Session,
     }
     h.signer_keylist.append(&mut h.recipient_keylist);
     unsafe { keylistp.as_mut() }.map(|p| {
-        *p = mem::replace(&mut h.signer_keylist, StringList::empty()).to_c();
+        *p = mem::replace(&mut h.signer_keylist, StringList::empty(mm)).to_c();
     });
 
 
@@ -963,7 +967,8 @@ ffi!(fn pgp_sign_only(
     -> Result<()>
 {
     let session = Session::as_mut(session);
-    let malloc = session.malloc();
+    let mm = session.mm();
+    let malloc = mm.malloc;
 
     if fpr.is_null() {
         return Err(Error::IllegalValue(
@@ -1069,7 +1074,8 @@ fn pgp_encrypt_sign_optional(
     tracer!(*crate::TRACE, "pgp_encrypt_sign_optional");
 
     let session = Session::as_mut(session);
-    let malloc = session.malloc();
+    let mm = session.mm();
+    let malloc = mm.malloc;
 
     if ptext.is_null() {
         return Err(Error::IllegalValue(
@@ -1088,7 +1094,7 @@ fn pgp_encrypt_sign_optional(
     let keystore = session.keystore();
 
 
-    let keylist = StringList::to_rust(keylist, false);
+    let keylist = StringList::to_rust(mm, keylist, false);
     t!("{} recipients.", keylist.len());
     for (i, v) in keylist.iter().enumerate() {
         t!("  {}. {}", i, String::from_utf8_lossy(v.to_bytes()));
@@ -1246,6 +1252,8 @@ ffi!(fn _pgp_generate_keypair(session: *mut Session,
     -> Result<()>
 {
     let session = Session::as_mut(session);
+    let mm = session.mm();
+
     let identity = if let Some(i) = PepIdentity::as_mut(identity) {
         i
     } else {
@@ -1373,7 +1381,7 @@ ffi!(fn _pgp_generate_keypair(session: *mut Session,
         CannotCreateKey,
         "Saving new key")?;
 
-    identity.set_fingerprint(fpr);
+    identity.set_fingerprint(mm, fpr);
 
     Ok(())
 });
@@ -1584,6 +1592,7 @@ ffi!(fn pgp_import_keydata(session: *mut Session,
     -> Result<()>
 {
     let session = Session::as_mut(session);
+    let mm = session.mm();
 
     if imported_keysp.is_null() && ! changed_key_indexp.is_null() {
         return Err(Error::IllegalValue(
@@ -1601,11 +1610,11 @@ ffi!(fn pgp_import_keydata(session: *mut Session,
     };
     // We add(!) to the existing lists.
     let mut identity_list = unsafe { identity_listp.as_mut() }
-        .map(|p| PepIdentityList::to_rust(*p, false))
-        .unwrap_or_else(|| PepIdentityList::empty());
+        .map(|p| PepIdentityList::to_rust(mm, *p, false))
+        .unwrap_or_else(|| PepIdentityList::empty(mm));
     let mut imported_keys = unsafe { imported_keysp.as_mut() }
-        .map(|p| StringList::to_rust(*p, false))
-        .unwrap_or_else(|| StringList::empty());
+        .map(|p| StringList::to_rust(mm, *p, false))
+        .unwrap_or_else(|| StringList::empty(mm));
     let mut changed_key_index: u64 = unsafe { changed_key_indexp.as_mut() }
         .map(|p| *p)
         .unwrap_or(0);
@@ -1701,7 +1710,8 @@ ffi!(fn pgp_export_keydata(session: *mut Session,
     -> Result<()>
 {
     let session = Session::as_mut(session);
-    let malloc = session.malloc();
+    let mm = session.mm();
+    let malloc = mm.malloc;
 
     if fpr.is_null() {
         return Err(Error::IllegalValue("fpr must not be NULL".into()));
@@ -1778,6 +1788,7 @@ fn list_keys(session: *mut Session,
     tracer!(*crate::TRACE, "list_keys");
 
     let session = Session::as_mut(session);
+    let mm = session.mm();
 
     if pattern.is_null() {
         return Err(Error::IllegalValue(
@@ -1787,7 +1798,7 @@ fn list_keys(session: *mut Session,
     // XXX: What should we do if pattern is not valid UTF-8?
     let pattern = pattern.to_string_lossy();
 
-    let mut keylist = StringList::empty();
+    let mut keylist = StringList::empty(mm);
 
     match session.keystore().list_keys(&pattern, private_only) {
         Err(Error::KeyNotFound(_)) => {

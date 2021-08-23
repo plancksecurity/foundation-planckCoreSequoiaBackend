@@ -12,12 +12,17 @@ use std::{
 };
 
 use libc::{
-    malloc,
     c_char,
 };
 
+use crate::Error;
+use crate::Result;
+use crate::ffi::MM;
+
 /// Copies a Rust string to a buffer, adding a terminating zero.
-pub fn rust_str_to_c_str<S: AsRef<str>>(s: S) -> *mut c_char {
+pub fn rust_str_to_c_str<S: AsRef<str>>(mm: MM, s: S) -> *mut c_char {
+    let malloc = mm.malloc;
+
     let s = s.as_ref();
     let bytes = s.as_bytes();
     unsafe {
@@ -31,7 +36,9 @@ pub fn rust_str_to_c_str<S: AsRef<str>>(s: S) -> *mut c_char {
 /// Copies a C string to a buffer, adding a terminating zero.
 ///
 /// Replaces embedded zeros with '_'.
-pub fn rust_bytes_to_c_str_lossy<S: AsRef<[u8]>>(s: S) -> *mut c_char {
+pub fn rust_bytes_to_c_str_lossy<S: AsRef<[u8]>>(mm: MM, s: S) -> *mut c_char {
+    let malloc = mm.malloc;
+
     let bytes = s.as_ref();
     unsafe {
         let buf = malloc(bytes.len() + 1);
@@ -45,4 +52,18 @@ pub fn rust_bytes_to_c_str_lossy<S: AsRef<[u8]>>(s: S) -> *mut c_char {
         *((buf as *mut u8).add(bytes.len())) = 0; // Terminate.
         buf as *mut c_char
     }
+}
+
+pub fn malloc_cleared<T>(mm: MM) -> Result<*mut T>
+{
+    let malloc = mm.malloc;
+
+    let size = std::mem::size_of::<T>();
+    let buffer = unsafe { malloc(size) };
+    if buffer.is_null() {
+        return Err(Error::OutOfMemory("malloc".into(), size));
+    };
+
+    unsafe { libc::memset(buffer, 0, size) };
+    Ok(buffer as *mut T)
 }

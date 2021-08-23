@@ -31,13 +31,14 @@ use std::os::raw::{
 };
 use std::ptr;
 
-use libc::calloc;
-use libc::free;
-
 use sequoia_openpgp as openpgp;
 use openpgp::Fingerprint;
 
-use crate::buffer::rust_str_to_c_str;
+use crate::buffer::{
+    malloc_cleared,
+    rust_str_to_c_str,
+};
+use crate::ffi::MM;
 use crate::pep::{
     PepCommType,
     PepEncFormat,
@@ -94,19 +95,19 @@ impl PepIdentity {
     ///
     /// The memory is allocated using the libc allocator.  The caller
     /// is responsible for freeing it explicitly.
-    pub fn new(template: &PepIdentityTemplate)
+    pub fn new(mm: MM, template: &PepIdentityTemplate)
         -> &'static mut Self
     {
-        let buffer = unsafe { calloc(1, std::mem::size_of::<Self>()) };
-        if buffer.is_null() {
+        let buffer = if let Ok(buffer) = malloc_cleared::<Self>(mm) {
+            buffer
+        } else {
             panic!("Out of memory allocating a PepIdentity");
-        }
-
+        };
         let ident = unsafe { &mut *(buffer as *mut Self) };
-        ident.address = rust_str_to_c_str(&template.address);
-        ident.fpr = rust_str_to_c_str(&template.fpr.to_hex());
+        ident.address = rust_str_to_c_str(mm, &template.address);
+        ident.fpr = rust_str_to_c_str(mm, &template.fpr.to_hex());
         if let Some(username) = template.username.as_ref() {
-            ident.username = rust_str_to_c_str(username);
+            ident.username = rust_str_to_c_str(mm, username);
         }
         ident
     }
@@ -137,9 +138,9 @@ impl PepIdentity {
     }
 
     /// Replaces the fingerprint.
-    pub fn set_fingerprint(&mut self, fpr: Fingerprint) {
+    pub fn set_fingerprint(&mut self, mm: MM, fpr: Fingerprint) {
         unsafe { libc::free(self.fpr as *mut _) };
-        self.fpr = rust_str_to_c_str(fpr.to_hex());
+        self.fpr = rust_str_to_c_str(mm, fpr.to_hex());
     }
 
     /// Returns the username (in RFC 2822 speak: the display name).
@@ -188,12 +189,13 @@ impl PepIdentityListItem {
     ///
     /// The memory is allocated using the libc allocator.  The caller
     /// is responsible for freeing it explicitly.
-    fn new(ident: &'static mut PepIdentity) -> &'static mut Self
+    fn new(mm: MM, ident: &'static mut PepIdentity) -> &'static mut Self
     {
-        let buffer = unsafe { calloc(1, std::mem::size_of::<Self>()) };
-        if buffer.is_null() {
+        let buffer = if let Ok(buffer) = malloc_cleared::<Self>(mm) {
+            buffer
+        } else {
             panic!("Out of memory allocating a PepIdentityListItem");
-        }
+        };
         let item = unsafe { &mut *(buffer as *mut Self) };
         item.ident = ident as *mut _;
         item
@@ -211,6 +213,7 @@ impl PepIdentityListItem {
 pub struct PepIdentityList {
     head: *mut PepIdentityListItem,
     owned: bool,
+    mm: MM,
 }
 
 impl PepIdentityList {
@@ -219,10 +222,12 @@ impl PepIdentityList {
     /// `owned` indicates whether the rust code should own the items.
     /// If so, when the `PepIdentityList` is dropped, the items will
     /// also be freed.
-    pub fn to_rust(l: *mut PepIdentityListItem, owned: bool) -> Self {
+    pub fn to_rust(mm: MM, l: *mut PepIdentityListItem, owned: bool) -> Self
+    {
         Self {
             head: l,
             owned,
+            mm,
         }
     }
 
@@ -239,10 +244,11 @@ impl PepIdentityList {
     /// Any added items are owned by the `PepIdentityList`, and when
     /// it is dropped, they are freed.  To take ownership of the
     /// items, call `PepIdentityList::to_c`.
-    pub fn empty() -> Self {
+    pub fn empty(mm: MM) -> Self {
         Self {
             head: ptr::null_mut(),
             owned: true,
+            mm,
         }
     }
 
@@ -251,7 +257,8 @@ impl PepIdentityList {
     /// The item's ownership is determined by the list's ownership
     /// property.
     pub fn add(&mut self, ident: &PepIdentityTemplate) {
-        let ident = PepIdentityListItem::new(PepIdentity::new(ident));
+        let ident = PepIdentityListItem::new(
+            self.mm, PepIdentity::new(self.mm, ident));
         ident.next = self.head;
         self.head = ident;
     }
@@ -259,6 +266,8 @@ impl PepIdentityList {
 
 impl Drop for PepIdentityList {
     fn drop(&mut self) {
+        let free = self.mm.free;
+
         let mut curr: *mut PepIdentityListItem = self.head;
         self.head = ptr::null_mut();
 
@@ -288,13 +297,15 @@ mod tests {
 
     #[test]
     fn identity() {
+        let mm = MM { malloc: libc::malloc, free: libc::free };
+
         let address = "addr@ess";
         let fpr = Fingerprint::from_str(
             "0123 4567 89AB CDEF 0000 0123 4567 89ab cdef 0000").unwrap();
         let username = "User Name";
 
         let template = PepIdentityTemplate::new(address, fpr, Some(username));
-        let ident = PepIdentity::new(&template);
+        let ident = PepIdentity::new(mm, &template);
 
         assert_eq!(ident.address().map(|s| s.to_bytes()),
                    Some(address.as_bytes()));
@@ -307,7 +318,9 @@ mod tests {
 
     #[test]
     fn list() {
-        let mut list = PepIdentityList::empty();
+        let mm = MM { malloc: libc::malloc, free: libc::free };
+
+        let mut list = PepIdentityList::empty(mm);
         assert!(list.head.is_null());
 
         let address = "addr@ess";

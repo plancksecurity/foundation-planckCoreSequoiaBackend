@@ -17,10 +17,12 @@ use std::ptr;
 use std::ffi::CStr;
 
 use libc::c_char;
-use libc::calloc;
-use libc::free;
 
-use crate::buffer::rust_str_to_c_str;
+use crate::ffi::MM;
+use crate::buffer::{
+    malloc_cleared,
+    rust_str_to_c_str,
+};
 
 #[repr(C)]
 pub struct StringListItem {
@@ -33,11 +35,12 @@ impl StringListItem {
     ///
     /// The memory is allocated using the libc allocator.  The caller
     /// is responsible for freeing it explicitly.
-    fn empty() -> &'static mut Self {
-        let buffer = unsafe { calloc(1, std::mem::size_of::<Self>()) };
-        if buffer.is_null() {
+    fn empty(mm: MM) -> &'static mut Self {
+        let buffer = if let Ok(buffer) = malloc_cleared::<Self>(mm) {
+            buffer
+        } else {
             panic!("Out of memory allocating a StringListItem");
-        }
+        };
         unsafe { &mut *(buffer as *mut Self) }
     }
 
@@ -46,10 +49,10 @@ impl StringListItem {
     ///
     /// The memory is allocated using the libc allocator.  The caller
     /// is responsible for freeing it explicitly.
-    fn new<S: AsRef<str>>(value: S, next: *mut Self) -> &'static mut Self {
-        let item = Self::empty();
+    fn new<S: AsRef<str>>(mm: MM, value: S, next: *mut Self) -> &'static mut Self {
+        let item = Self::empty(mm);
 
-        item.value = rust_str_to_c_str(value);
+        item.value = rust_str_to_c_str(mm, value);
         item.next = next;
 
         item
@@ -69,6 +72,7 @@ pub struct StringList {
     head: *mut StringListItem,
     // If set, when the StringList is dropped, the items are freed.
     owned: bool,
+    mm: MM,
 }
 
 impl StringList {
@@ -77,10 +81,12 @@ impl StringList {
     /// `owned` indicates whether the rust code should own the items.
     /// If so, when the `StringList` is dropped, the items will also
     /// be freed.
-    pub fn to_rust(sl: *mut StringListItem, owned: bool) -> Self {
+    pub fn to_rust(mm: MM, sl: *mut StringListItem, owned: bool) -> Self
+    {
         StringList {
             head: sl,
             owned,
+            mm,
         }
     }
 
@@ -97,10 +103,11 @@ impl StringList {
     /// The items are owned by the `StringList`, and when it is
     /// dropped, they are freed.  To take ownership of the items, call
     /// `StringList::to_c`.
-    pub fn new<S: AsRef<str>>(value: S) -> Self {
+    pub fn new<S: AsRef<str>>(mm: MM, value: S) -> Self {
         StringList {
-            head: StringListItem::new(value, ptr::null_mut()),
+            head: StringListItem::new(mm, value, ptr::null_mut()),
             owned: true,
+            mm,
         }
     }
 
@@ -109,10 +116,12 @@ impl StringList {
     /// Any added items are owned by the `StringList`, and when it is
     /// dropped, they are freed.  To take ownership of the items, call
     /// `StringList::to_c`.
-    pub fn empty() -> Self {
+    pub fn empty(mm: MM) -> Self
+    {
         StringList {
             head: ptr::null_mut(),
             owned: true,
+            mm,
         }
     }
 
@@ -121,9 +130,12 @@ impl StringList {
     /// variant, which we use for testing.
     #[cfg(test)]
     fn empty_alt() -> Self {
+        let mm = MM { malloc: libc::malloc, free: libc::free };
+
         StringList {
-            head: StringListItem::empty(),
+            head: StringListItem::empty(mm),
             owned: true,
+            mm,
         }
     }
 
@@ -147,6 +159,8 @@ impl StringList {
     }
 
     fn add_<S: AsRef<str>>(&mut self, value: S, dedup: bool) {
+        let mm = self.mm;
+
         let value = value.as_ref();
 
         // See if the value already exists in the string list.
@@ -163,18 +177,18 @@ impl StringList {
         let itemp = iter.item();
         if (*itemp).is_null() {
             // 1. head is NULL (this is the case if item is NULL).
-            *itemp = StringListItem::new(value, ptr::null_mut());
+            *itemp = StringListItem::new(mm, value, ptr::null_mut());
         } else {
             let item: &mut StringListItem
                 = StringListItem::as_mut(*itemp).expect("just checked");
 
             if item.value.is_null() {
                 // 2. head is not NULL, but head.value is NULL.
-                item.value = rust_str_to_c_str(value);
+                item.value = rust_str_to_c_str(mm, value);
             } else {
                 // 3. neither head nor head.value are NULL.
                 assert!(item.next.is_null());
-                item.next = StringListItem::new(value, ptr::null_mut());
+                item.next = StringListItem::new(mm, value, ptr::null_mut());
             }
         }
     }
@@ -200,6 +214,8 @@ impl StringList {
     /// The items in other have the same ownership as items in `self`.
     /// `other` is reset to an empty list.
     pub fn append(&mut self, other: &mut StringList) {
+        let free = self.mm.free;
+
         let mut iter = self.iter_mut();
         (&mut iter).last();
 
@@ -229,6 +245,8 @@ impl StringList {
 
 impl Drop for StringList {
     fn drop(&mut self) {
+        let free = self.mm.free;
+
         let mut curr: *mut StringListItem = self.head;
         self.head = ptr::null_mut();
 
@@ -320,27 +338,33 @@ mod tests {
 
     #[test]
     fn empty() {
+        let mm = MM { malloc: libc::malloc, free: libc::free };
+
         // There are two ways to make an empty list.  Either head is
         // NULL or the string list item's value and next are NULL.
         let empty = StringList {
             head: ptr::null_mut(),
             owned: true,
+            mm: mm,
         };
         assert_eq!(empty.len(), 0);
 
         let empty = StringList {
-            head: StringListItem::empty(),
+            head: StringListItem::empty(mm),
             owned: true,
+            mm: mm,
         };
         assert_eq!(empty.len(), 0);
     }
 
     #[test]
     fn add() {
+        let mm = MM { malloc: libc::malloc, free: libc::free };
+
         for variant in 0..3 {
             let (mut list, mut v) = match variant {
                 0 => {
-                    let list = StringList::new("abc");
+                    let list = StringList::new(mm, "abc");
                     assert_eq!(list.len(), 1);
 
                     let mut v: Vec<String> = Vec::new();
@@ -348,7 +372,7 @@ mod tests {
 
                     (list, v)
                 },
-                1 => (StringList::empty(), Vec::new()),
+                1 => (StringList::empty(mm), Vec::new()),
                 2 => (StringList::empty_alt(), Vec::new()),
                 _ => unreachable!(),
             };
@@ -374,10 +398,12 @@ mod tests {
 
     #[test]
     fn add_unique() {
+        let mm = MM { malloc: libc::malloc, free: libc::free };
+
         for variant in 0..3 {
             let (mut list, mut v) = match variant {
                 0 => {
-                    let list = StringList::new("abc");
+                    let list = StringList::new(mm, "abc");
                     assert_eq!(list.len(), 1);
 
                     let mut v: Vec<String> = Vec::new();
@@ -385,7 +411,7 @@ mod tests {
 
                     (list, v)
                 },
-                1 => (StringList::empty(), Vec::new()),
+                1 => (StringList::empty(mm), Vec::new()),
                 2 => (StringList::empty_alt(), Vec::new()),
                 _ => unreachable!(),
             };
@@ -420,12 +446,14 @@ mod tests {
 
     #[test]
     fn append() {
+        let mm = MM { malloc: libc::malloc, free: libc::free };
+
         for variant in 0..2 {
             // Returns a list and a vector with `count` items whose
             // values are `prefix_0`, `prefix_1`, etc.
             let list = |count: usize, prefix: &str| -> (StringList, Vec<String>) {
                 let mut l = match variant {
-                    0 => StringList::empty(),
+                    0 => StringList::empty(mm),
                     1 => StringList::empty_alt(),
                     _ => unreachable!(),
                 };

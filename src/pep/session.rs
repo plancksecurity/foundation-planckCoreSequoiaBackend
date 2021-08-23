@@ -11,14 +11,13 @@ use crate::Error;
 use crate::Keystore;
 use crate::PepCipherSuite;
 use crate::Result;
-use crate::{Malloc, Free};
+use crate::ffi::MM;
 
 const MAGIC: u64 = 0xE3F3_05AD_48EE_0DF5;
 
 pub struct State {
     ks: Keystore,
-    malloc: Malloc,
-    free: Free,
+    mm: MM,
     magic: u64,
 }
 
@@ -75,8 +74,10 @@ impl Session {
             version: ptr::null(),
             state: Box::into_raw(Box::new(State {
                 ks: Keystore::init_in_memory().unwrap(),
-                malloc: libc::malloc,
-                free: libc::free,
+                mm: MM {
+                    malloc: libc::malloc,
+                    free: libc::free,
+                },
                 magic: MAGIC,
             })),
             curr_passphrase: ptr::null(),
@@ -87,16 +88,14 @@ impl Session {
     }
 
     pub fn init(&mut self,
-                ks: Keystore,
-                malloc: Malloc,
-                free: Free)
+                mm: MM,
+                ks: Keystore)
     {
         assert!(self.state.is_null());
 
         self.state = Box::into_raw(Box::new(State {
             ks: ks,
-            malloc: malloc,
-            free: free,
+            mm,
             magic: MAGIC,
         }));
     }
@@ -121,14 +120,9 @@ impl Session {
         &mut State::as_mut(self.state).ks
     }
 
-    /// Returns the application's malloc routine.
-    pub fn malloc(&self) -> Malloc {
-        State::as_mut(self.state).malloc
-    }
-
-    /// Returns the application's free routine.
-    pub fn free(&self) -> Free {
-        State::as_mut(self.state).free
+    /// Returns the application's memory management routines.
+    pub fn mm(&self) -> MM {
+        State::as_mut(self.state).mm
     }
 
     /// Returns the value of curr_passphrase.
@@ -209,8 +203,8 @@ mod tests {
             session.deinit();
 
             // If the state pointer is non-NULL, this will panic.
-            session.init(Keystore::init_in_memory().unwrap(),
-                         libc::malloc, libc::free);
+            session.init(MM { malloc: libc::malloc, free: libc::free },
+                         Keystore::init_in_memory().unwrap());
             let ks = session.keystore() as *mut _;
             let ks2 = session.keystore() as *mut _;
             assert!(ptr::eq(ks, ks2));
