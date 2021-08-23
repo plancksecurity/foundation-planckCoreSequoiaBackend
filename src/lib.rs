@@ -137,7 +137,7 @@ pub const P: &NullPolicy = &NullPolicy::new();
 ffi!(fn pgp_config_cipher_suite(session: *mut Session, suite: PepCipherSuite)
     -> Result<()>
 {
-    let session = Session::as_mut(session);
+    let session = Session::as_mut(session)?;
     session.set_cipher_suite(suite)
 });
 
@@ -270,7 +270,7 @@ ffi!(fn pgp_init_(session: *mut Session, _in_first: bool,
     // assert_eq!(stringpair_list_size as usize, size_of::<StringPairList>(),
     //            "stringpair_list_size");
 
-    let session = Session::as_mut(session);
+    let session = Session::as_mut(session)?;
 
     if per_user_directory.is_null() {
         return Err(Error::IllegalValue(
@@ -300,7 +300,7 @@ ffi!(fn pgp_init_(session: *mut Session, _in_first: bool,
 
 // void pgp_release(PEP_SESSION session, bool out_last)
 ffi!(fn pgp_release(session: *mut Session, _out_last: bool) -> Result<()> {
-    Session::as_mut(session).deinit();
+    Session::as_mut(session)?.deinit();
     Ok(())
 });
 
@@ -721,7 +721,7 @@ ffi!(fn pgp_decrypt_and_verify(session: *mut Session,
                                filename_ptr: *mut *mut c_char)
     -> Result<()>
 {
-    let session = Session::as_mut(session);
+    let session = Session::as_mut(session)?;
     let mm = session.mm();
     let malloc = mm.malloc;
 
@@ -848,7 +848,7 @@ ffi!(fn pgp_verify_text(session: *mut Session,
                         keylistp: *mut *mut StringListItem)
     -> Result<()>
 {
-    let session = Session::as_mut(session);
+    let session = Session::as_mut(session)?;
     let mm = session.mm();
 
     if size == 0 || sig_size == 0 {
@@ -966,7 +966,7 @@ ffi!(fn pgp_sign_only(
     stextp: *mut *mut c_char, ssizep: *mut size_t)
     -> Result<()>
 {
-    let session = Session::as_mut(session);
+    let session = Session::as_mut(session)?;
     let mm = session.mm();
     let malloc = mm.malloc;
 
@@ -1073,7 +1073,7 @@ fn pgp_encrypt_sign_optional(
 {
     tracer!(*crate::TRACE, "pgp_encrypt_sign_optional");
 
-    let session = Session::as_mut(session);
+    let session = Session::as_mut(session)?;
     let mm = session.mm();
     let malloc = mm.malloc;
 
@@ -1251,7 +1251,7 @@ ffi!(fn _pgp_generate_keypair(session: *mut Session,
                               when: time_t)
     -> Result<()>
 {
-    let session = Session::as_mut(session);
+    let session = Session::as_mut(session)?;
     let mm = session.mm();
 
     let identity = if let Some(i) = PepIdentity::as_mut(identity) {
@@ -1400,7 +1400,7 @@ ffi!(fn pgp_delete_keypair(session: *mut Session,
                            fpr: *const c_char)
     -> Result<()>
 {
-    let session = Session::as_mut(session);
+    let session = Session::as_mut(session)?;
     let keystore = session.keystore();
 
     if fpr.is_null() {
@@ -1591,7 +1591,7 @@ ffi!(fn pgp_import_keydata(session: *mut Session,
                            changed_key_indexp: *mut u64)
     -> Result<()>
 {
-    let session = Session::as_mut(session);
+    let session = Session::as_mut(session)?;
     let mm = session.mm();
 
     if imported_keysp.is_null() && ! changed_key_indexp.is_null() {
@@ -1709,7 +1709,7 @@ ffi!(fn pgp_export_keydata(session: *mut Session,
                            secret: bool)
     -> Result<()>
 {
-    let session = Session::as_mut(session);
+    let session = Session::as_mut(session)?;
     let mm = session.mm();
     let malloc = mm.malloc;
 
@@ -1787,7 +1787,7 @@ fn list_keys(session: *mut Session,
 {
     tracer!(*crate::TRACE, "list_keys");
 
-    let session = Session::as_mut(session);
+    let session = Session::as_mut(session)?;
     let mm = session.mm();
 
     if pattern.is_null() {
@@ -1858,7 +1858,7 @@ ffi!(fn pgp_renew_key(session: *mut Session,
                       expiration: *const Timestamp)
     -> Result<()>
 {
-    let session = Session::as_mut(session);
+    let session = Session::as_mut(session)?;
 
     if fpr.is_null() {
         return Err(Error::IllegalValue(
@@ -1974,7 +1974,7 @@ ffi!(fn pgp_revoke_key(session: *mut Session,
                        reason: *const c_char)
     -> Result<()>
 {
-    let session = Session::as_mut(session);
+    let session = Session::as_mut(session)?;
 
     if fpr.is_null() {
         return Err(Error::IllegalValue(
@@ -2112,7 +2112,7 @@ ffi!(fn pgp_key_expired(session: *mut Session,
                         expiredp: *mut bool)
     -> Result<()>
 {
-    let session = Session::as_mut(session);
+    let session = Session::as_mut(session)?;
 
     if fpr.is_null() {
         return Err(Error::IllegalValue(
@@ -2205,7 +2205,7 @@ ffi!(fn pgp_key_revoked(session: *mut Session,
                         revokedp: *mut bool)
     -> Result<()>
 {
-    let session = Session::as_mut(session);
+    let session = Session::as_mut(session)?;
 
     if fpr.is_null() {
         return Err(Error::IllegalValue(
@@ -2245,7 +2245,7 @@ ffi!(fn pgp_get_key_rating(session: *mut Session, fpr: *const c_char,
                            comm_typep: *mut PepCommType)
     -> Result<()>
 {
-    let session = Session::as_mut(session);
+    let session = Session::as_mut(session)?;
 
     if fpr.is_null() {
         return Err(Error::IllegalValue(
@@ -2369,7 +2369,7 @@ ffi!(fn pgp_key_created(session: *mut Session,
                         createdp: *mut time_t)
     -> Result<()>
 {
-    let session = Session::as_mut(session);
+    let session = Session::as_mut(session)?;
 
     if fpr.is_null() {
         return Err(Error::IllegalValue(
@@ -2413,7 +2413,7 @@ ffi!(fn pgp_contains_priv_key(session: *mut Session, fpr: *const c_char,
                               has_privatep: *mut bool)
     -> Result<()>
 {
-    let session = Session::as_mut(session);
+    let session = Session::as_mut(session)?;
 
     if fpr.is_null() {
         return Err(Error::IllegalValue(

@@ -108,8 +108,13 @@ impl Session {
     /// Converts the raw pointer to a Rust reference.
     ///
     /// This does not take ownership of the object.
-    pub fn as_mut(ptr: *mut Self) -> &'static mut Self {
-        unsafe { ptr.as_mut() }.expect("NULL pointer")
+    pub fn as_mut(ptr: *mut Self) -> Result<&'static mut Self> {
+        if let Some(session) = unsafe { ptr.as_mut() } {
+            Ok(session)
+        } else {
+            Err(Error::IllegalValue(
+                "session may not be NULL".into()))
+        }
     }
 
     /// Returns a reference to the keystore.
@@ -195,7 +200,7 @@ mod tests {
         let session = Session::new();
 
         {
-            let session: &mut Session = Session::as_mut(session);
+            let session: &mut Session = Session::as_mut(session).unwrap();
 
             let ks = session.keystore() as *mut _;
             let ks2 = session.keystore() as *mut _;
