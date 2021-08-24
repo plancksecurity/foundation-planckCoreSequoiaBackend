@@ -716,7 +716,7 @@ impl<'a> DecryptionHelper for &mut Helper<'a> {
 ffi!(fn pgp_decrypt_and_verify(session: *mut Session,
                                ctext: *const c_char, csize: size_t,
                                dsigtext: *const c_char, _dsigsize: size_t,
-                               ptext: *mut *mut c_char, psize: *mut size_t,
+                               ptextp: *mut *mut c_char, psizep: *mut size_t,
                                keylistp: *mut *mut StringListItem,
                                filename_ptr: *mut *mut c_char)
     -> Result<()>
@@ -725,13 +725,7 @@ ffi!(fn pgp_decrypt_and_verify(session: *mut Session,
     let mm = session.mm();
     let malloc = mm.malloc;
 
-    if ctext.is_null() {
-        return Err(Error::IllegalValue(
-            "ctext may not be NULL".into()));
-    }
-    let ctext = unsafe {
-        std::slice::from_raw_parts(ctext as *const u8, csize)
-    };
+    let ctext = unsafe { check_slice!(ctext, csize) };
 
     // XXX: We don't handle detached signatures over encrypted
     // messages (and never have).
@@ -740,10 +734,12 @@ ffi!(fn pgp_decrypt_and_verify(session: *mut Session,
             "detached signatures over encrypted data are not supported".into()));
     }
 
-    unsafe {
-        ptext.as_mut().map(|p| *p = ptr::null_mut());
-        psize.as_mut().map(|p| *p = 0);
-    }
+    let ptextp = unsafe { check_mut!(ptextp) };
+    *ptextp = ptr::null_mut();
+    let psizep = unsafe { check_mut!(psizep) };
+    *psizep = 0;
+
+    let keylistp = unsafe { check_mut!(keylistp) };
 
     let mut h = Helper::new(session);
 
@@ -776,21 +772,18 @@ ffi!(fn pgp_decrypt_and_verify(session: *mut Session,
     content.push(0);
 
     unsafe {
-        if let Some(ptextp) = ptext.as_mut() {
-            let buffer = malloc(content.len()) as *mut u8;
-            if buffer.is_null() {
-                return Err(Error::OutOfMemory(
-                    "content".into(), content.len()));
-            }
-            slice::from_raw_parts_mut(buffer, content.len())
-                .copy_from_slice(&content);
-
-            *ptextp = buffer as *mut _;
+        let buffer = malloc(content.len()) as *mut u8;
+        if buffer.is_null() {
+            return Err(Error::OutOfMemory(
+                "content".into(), content.len()));
         }
-        psize.as_mut().map(|p| {
-            // Don't count the trailing NUL.
-            *p = content.len() - 1
-        });
+        slice::from_raw_parts_mut(buffer, content.len())
+            .copy_from_slice(&content);
+
+        *ptextp = buffer as *mut _;
+
+        // Don't count the trailing NUL.
+        *psizep = content.len() - 1;
     }
 
     if h.signer_keylist.len() == 0 {
@@ -798,9 +791,7 @@ ffi!(fn pgp_decrypt_and_verify(session: *mut Session,
     }
     h.signer_keylist.append(&mut h.recipient_keylist);
 
-    unsafe { keylistp.as_mut() }.map(|p| {
-        *p = mem::replace(&mut h.signer_keylist, StringList::empty(mm)).to_c();
-    });
+    *keylistp = mem::replace(&mut h.signer_keylist, StringList::empty(mm)).to_c();
 
     if ! filename_ptr.is_null() {
         if let Some(p) = unsafe { filename_ptr.as_mut() } {
@@ -855,21 +846,8 @@ ffi!(fn pgp_verify_text(session: *mut Session,
         return Err(Error::DecryptWrongFormat);
     }
 
-    if text.is_null() {
-        return Err(Error::IllegalValue(
-            "text may not be NULL".into()));
-    }
-    let text = unsafe {
-        std::slice::from_raw_parts(text as *const u8, size)
-    };
-
-    if signature.is_null() {
-        return Err(Error::IllegalValue(
-            "signature may not be NULL".into()));
-    }
-    let signature = unsafe {
-        std::slice::from_raw_parts(signature as *const u8, sig_size)
-    };
+    let text = unsafe { check_slice!(text, size) };
+    let signature = unsafe { check_slice!(signature, sig_size) };
 
     // ASCII text is sometimes mangled in transport.  Show some stats
     // to make detecting this easier.
@@ -970,28 +948,13 @@ ffi!(fn pgp_sign_only(
     let mm = session.mm();
     let malloc = mm.malloc;
 
-    if fpr.is_null() {
-        return Err(Error::IllegalValue(
-            "fpr may not be NULL".into()));
-    }
-    let fpr = unsafe { CStr::from_ptr(fpr) };
-    let fpr = wrap_err!(
-        Fingerprint::from_hex(&String::from_utf8_lossy(fpr.to_bytes())),
-        UnknownError,
-        "Not a fingerprint")?;
+    let fpr = unsafe { check_fpr!(fpr) };
+    let ptext = unsafe { check_slice!(ptext, psize) };
 
-    if ptext.is_null() {
-        return Err(Error::IllegalValue(
-            "ptext may not be NULL".into()));
-    }
-    let ptext = unsafe {
-        slice::from_raw_parts(ptext as *const u8, psize)
-    };
-
-    unsafe {
-        stextp.as_mut().map(|p| *p = ptr::null_mut());
-        ssizep.as_mut().map(|p| *p = 0);
-    }
+    let stextp = unsafe {  check_mut!(stextp) };
+    *stextp = ptr::null_mut();
+    let ssizep = unsafe {  check_mut!(ssizep) };
+    *ssizep = 0;
 
     let password = session.curr_passphrase();
     let keystore = session.keystore();
@@ -1044,19 +1007,16 @@ ffi!(fn pgp_sign_only(
 
     // We need to store it in a buffer backed by the libc allocator.
     unsafe {
-        if let Some(stextp) = stextp.as_mut() {
-            let buffer = malloc(stext.len()) as *mut u8;
-            if buffer.is_null() {
-                return Err(Error::OutOfMemory("stext".into(), stext.len()));
-            }
-            slice::from_raw_parts_mut(buffer, stext.len())
-                .copy_from_slice(&stext);
-            *stextp = buffer as *mut _;
+        let buffer = malloc(stext.len()) as *mut u8;
+        if buffer.is_null() {
+            return Err(Error::OutOfMemory("stext".into(), stext.len()));
         }
-        ssizep.as_mut().map(|p| {
-            // Don't count the trailing NUL.
-            *p = stext.len() - 1
-        });
+        slice::from_raw_parts_mut(buffer, stext.len())
+            .copy_from_slice(&stext);
+        *stextp = buffer as *mut _;
+
+        // Don't count the trailing NUL.
+        *ssizep = stext.len() - 1;
     }
 
     Ok(())
@@ -1077,18 +1037,12 @@ fn pgp_encrypt_sign_optional(
     let mm = session.mm();
     let malloc = mm.malloc;
 
-    if ptext.is_null() {
-        return Err(Error::IllegalValue(
-            "ptext may not be NULL".into()));
-    }
-    let ptext = unsafe {
-        slice::from_raw_parts(ptext as *const u8, psize)
-    };
+    let ptext = unsafe { check_slice!(ptext, psize) };
 
-    unsafe {
-        ctextp.as_mut().map(|p| *p = ptr::null_mut());
-        csizep.as_mut().map(|p| *p = 0);
-    }
+    let ctextp = unsafe {  check_mut!(ctextp) };
+    *ctextp = ptr::null_mut();
+    let csizep = unsafe {  check_mut!(csizep) };
+    *csizep = 0;
 
     let password = session.curr_passphrase();
     let keystore = session.keystore();
@@ -1200,19 +1154,16 @@ fn pgp_encrypt_sign_optional(
 
     // We need to store it in a buffer backed by the libc allocator.
     unsafe {
-        if let Some(ctextp) = ctextp.as_mut() {
-            let buffer = malloc(ctext.len()) as *mut u8;
-            if buffer.is_null() {
-                return Err(Error::OutOfMemory("ctext".into(), ctext.len()));
-            }
-            slice::from_raw_parts_mut(buffer, ctext.len())
-                .copy_from_slice(&ctext);
-            *ctextp = buffer as *mut _;
+        let buffer = malloc(ctext.len()) as *mut u8;
+        if buffer.is_null() {
+            return Err(Error::OutOfMemory("ctext".into(), ctext.len()));
         }
-        csizep.as_mut().map(|p| {
-            // Don't count the trailing NUL.
-            *p = ctext.len() - 1
-        });
+        slice::from_raw_parts_mut(buffer, ctext.len())
+            .copy_from_slice(&ctext);
+        *ctextp = buffer as *mut _;
+
+        // Don't count the trailing NUL.
+        *csizep = ctext.len() - 1;
     }
 
     Ok(())
@@ -1398,15 +1349,7 @@ ffi!(fn pgp_delete_keypair(session: *mut Session,
     let session = Session::as_mut(session)?;
     let keystore = session.keystore();
 
-    if fpr.is_null() {
-        return Err(Error::IllegalValue("fpr must not be NULL".into()));
-    }
-    let fpr = unsafe { CStr::from_ptr(fpr) };
-    let fpr = wrap_err!(
-        Fingerprint::from_hex(&String::from_utf8_lossy(fpr.to_bytes())),
-        UnknownError,
-        "Not a fingerprint")?;
-
+    let fpr = unsafe { check_fpr!(fpr) };
     t!("Deleting {}", fpr);
 
     keystore.cert_delete(fpr)
@@ -1596,13 +1539,8 @@ ffi!(fn pgp_import_keydata(session: *mut Session,
                 .into()));
     }
 
-    if keydata.is_null() {
-        return Err(Error::IllegalValue(
-            "keydata may not be NULL".into()));
-    }
-    let keydata = unsafe {
-        std::slice::from_raw_parts(keydata as *const u8, keydata_len)
-    };
+    let keydata = unsafe { check_slice!(keydata, keydata_len) };
+
     // We add(!) to the existing lists.
     let mut identity_list = unsafe { identity_listp.as_mut() }
         .map(|p| PepIdentityList::to_rust(mm, *p, false))
@@ -1708,16 +1646,11 @@ ffi!(fn pgp_export_keydata(session: *mut Session,
     let mm = session.mm();
     let malloc = mm.malloc;
 
-    if fpr.is_null() {
-        return Err(Error::IllegalValue("fpr must not be NULL".into()));
-    }
-    let fpr = unsafe { CStr::from_ptr(fpr) };
-    let fpr = wrap_err!(
-        Fingerprint::from_hex(&String::from_utf8_lossy(fpr.to_bytes())),
-        UnknownError,
-        "Not a fingerprint")?;
-
+    let fpr = unsafe { check_fpr!(fpr) };
     t!("({}, {})", fpr, if secret { "secret" } else { "public" });
+
+    let keydatap = unsafe { check_mut!(keydatap) };
+    let keydata_lenp = unsafe { check_mut!(keydata_lenp) };
 
     // If the caller asks for a secret key and we only have a
     // public key, then we return an error.
@@ -1741,19 +1674,16 @@ ffi!(fn pgp_export_keydata(session: *mut Session,
 
     // We need to store it in a buffer backed by the libc allocator.
     unsafe {
-        if let Some(keydatap) = keydatap.as_mut() {
-            let buffer = malloc(keydata.len()) as *mut u8;
-            if buffer.is_null() {
-                return Err(Error::OutOfMemory("keydata".into(), keydata.len()));
-            }
-            slice::from_raw_parts_mut(buffer, keydata.len())
-                .copy_from_slice(&keydata);
-            *keydatap = buffer as *mut _;
+        let buffer = malloc(keydata.len()) as *mut u8;
+        if buffer.is_null() {
+            return Err(Error::OutOfMemory("keydata".into(), keydata.len()));
         }
-        keydata_lenp.as_mut().map(|p| {
-            // Don't count the trailing NUL.
-            *p = keydata.len() - 1
-        });
+        slice::from_raw_parts_mut(buffer, keydata.len())
+            .copy_from_slice(&keydata);
+        *keydatap = buffer as *mut _;
+
+        // Don't count the trailing NUL.
+        *keydata_lenp = keydata.len() - 1;
     }
 
     Ok(())
@@ -1785,13 +1715,11 @@ fn list_keys(session: *mut Session,
     let session = Session::as_mut(session)?;
     let mm = session.mm();
 
-    if pattern.is_null() {
-        return Err(Error::IllegalValue(
-            "pattern may not be NULL".into()));
-    }
-    let pattern = unsafe { CStr::from_ptr(pattern) };
+    let pattern = unsafe { check_cstr!(pattern) };
     // XXX: What should we do if pattern is not valid UTF-8?
     let pattern = pattern.to_string_lossy();
+
+    let keylistp = unsafe { check_mut!(keylistp) };
 
     let mut keylist = StringList::empty(mm);
 
@@ -1813,9 +1741,7 @@ fn list_keys(session: *mut Session,
 
     t!("Found {} certificates matching '{}'", keylist.len(), pattern);
 
-    unsafe { keylistp.as_mut() }.map(|p| {
-        *p = keylist.to_c();
-    });
+    *keylistp = keylist.to_c();
 
     Ok(())
 }
@@ -1855,21 +1781,8 @@ ffi!(fn pgp_renew_key(session: *mut Session,
 {
     let session = Session::as_mut(session)?;
 
-    if fpr.is_null() {
-        return Err(Error::IllegalValue(
-            "fpr may not be NULL".into()));
-    }
-    let fpr = unsafe { CStr::from_ptr(fpr) };
-    let fpr = wrap_err!(
-        Fingerprint::from_hex(&String::from_utf8_lossy(fpr.to_bytes())),
-        UnknownError,
-        "Not a fingerprint")?;
-
-    let expiration = if let Some(expiration) = unsafe { expiration.as_ref() } {
-        expiration
-    } else {
-        return Err(Error::IllegalValue("expiration must not be NULL".into()));
-    };
+    let fpr = unsafe { check_fpr!(fpr) };
+    let expiration = unsafe { check_ptr!(expiration) };
 
     let password = session.curr_passphrase();
     let keystore = session.keystore();
@@ -1971,16 +1884,7 @@ ffi!(fn pgp_revoke_key(session: *mut Session,
 {
     let session = Session::as_mut(session)?;
 
-    if fpr.is_null() {
-        return Err(Error::IllegalValue(
-            "fpr may not be NULL".into()));
-    }
-    let fpr = unsafe { CStr::from_ptr(fpr) };
-    let fpr = wrap_err!(
-        Fingerprint::from_hex(&String::from_utf8_lossy(fpr.to_bytes())),
-        UnknownError,
-        "Not a fingerprint")?;
-
+    let fpr = unsafe { check_fpr!(fpr) };
     let reason = unsafe {
         reason.as_ref()
             .map(|reason| CStr::from_ptr(reason).to_bytes())
@@ -2109,22 +2013,13 @@ ffi!(fn pgp_key_expired(session: *mut Session,
 {
     let session = Session::as_mut(session)?;
 
-    if fpr.is_null() {
-        return Err(Error::IllegalValue(
-            "fpr may not be NULL".into()));
-    }
-    let fpr = unsafe { &CStr::from_ptr(fpr) };
-    let fpr = wrap_err!(
-        Fingerprint::from_hex(&String::from_utf8_lossy(fpr.to_bytes())),
-        UnknownError,
-        "Not a fingerprint")?;
+    let fpr = unsafe { check_fpr!(fpr) };
+    let expiredp = unsafe { check_mut!(expiredp) };
 
     if when < 0 {
         // when is before UNIX EPOCH.  The key was not alive at
         // this time (the first keys were create around 1990).
-        unsafe { expiredp.as_mut() }.map(|p| {
-            *p = true;
-        });
+        *expiredp = true;
         return Ok(());
     }
     let when = SystemTime::UNIX_EPOCH + Duration::new(when as u64, 0);
@@ -2137,9 +2032,7 @@ ffi!(fn pgp_key_expired(session: *mut Session,
 
     let expired = _pgp_key_expired(&vc);
 
-    unsafe { expiredp.as_mut() }.map(|p| {
-        *p = expired;
-    });
+    *expiredp = expired;
 
     t!("{} is {}expired as of {:?}",
        fpr,
@@ -2202,15 +2095,8 @@ ffi!(fn pgp_key_revoked(session: *mut Session,
 {
     let session = Session::as_mut(session)?;
 
-    if fpr.is_null() {
-        return Err(Error::IllegalValue(
-            "fpr may not be NULL".into()));
-    }
-    let fpr = unsafe { &CStr::from_ptr(fpr) };
-    let fpr = wrap_err!(
-        Fingerprint::from_hex(&String::from_utf8_lossy(fpr.to_bytes())),
-        UnknownError,
-        "Not a fingerprint")?;
+    let fpr = unsafe { check_fpr!(fpr) };
+    let revokedp = unsafe { check_mut!(revokedp) };
 
     let (cert, _private) = session.keystore().cert_find(fpr.clone(), false)?;
 
@@ -2221,9 +2107,7 @@ ffi!(fn pgp_key_revoked(session: *mut Session,
 
     let revoked = _pgp_key_revoked(&vc);
 
-    unsafe { revokedp.as_mut() }.map(|p| {
-        *p = revoked;
-    });
+    *revokedp = revoked;
 
     t!("{} is {}revoked",
        fpr,
@@ -2242,25 +2126,9 @@ ffi!(fn pgp_get_key_rating(session: *mut Session, fpr: *const c_char,
 {
     let session = Session::as_mut(session)?;
 
-    if fpr.is_null() {
-        return Err(Error::IllegalValue(
-            "fpr may not be NULL".into()));
-    }
-    let fpr = unsafe { CStr::from_ptr(fpr) };
-    let fpr = wrap_err!(
-        Fingerprint::from_hex(&String::from_utf8_lossy(fpr.to_bytes())),
-        UnknownError,
-        "Not a fingerprint")?;
-
-    if comm_typep.is_null() {
-        return Err(Error::IllegalValue(
-            "comm_type may not be NULL".into()));
-    }
-    let comm_type = |ct| {
-        unsafe { comm_typep.as_mut() }.map(|p| {
-            *p = ct;
-        });
-    };
+    let fpr = unsafe { check_fpr!(fpr) };
+    let comm_typep = unsafe { check_mut!(comm_typep) };
+    let mut comm_type = |ct| *comm_typep = ct;
 
     comm_type(PepCommType::Unknown);
 
@@ -2352,8 +2220,7 @@ ffi!(fn pgp_get_key_rating(session: *mut Session, fpr: *const c_char,
         comm_type(cmp::min(worst_enc, worst_sign));
     }
 
-    t!("{}'s rating is {:?}",
-       fpr, unsafe { comm_typep.as_ref() }.unwrap());
+    t!("{}'s rating is {:?}", fpr, *comm_typep);
 
     Ok(())
 });
@@ -2366,20 +2233,8 @@ ffi!(fn pgp_key_created(session: *mut Session,
 {
     let session = Session::as_mut(session)?;
 
-    if fpr.is_null() {
-        return Err(Error::IllegalValue(
-            "fpr may not be NULL".into()));
-    }
-    let fpr = unsafe { &CStr::from_ptr(fpr) };
-    let fpr = wrap_err!(
-        Fingerprint::from_hex(&String::from_utf8_lossy(fpr.to_bytes())),
-        UnknownError,
-        "Not a fingerprint")?;
-
-    if createdp.is_null() {
-        return Err(Error::IllegalValue(
-            "createdp may not be NULL".into()));
-    }
+    let fpr = unsafe { check_fpr!(fpr) };
+    let createdp = unsafe { check_mut!(createdp) };
 
     let (cert, _private) = session.keystore().cert_find(fpr, false)?;
 
@@ -2388,16 +2243,15 @@ ffi!(fn pgp_key_created(session: *mut Session,
         UnknownError,
         "Creation time out of range")?.as_secs();
 
-    unsafe { createdp.as_mut() }.map(|p| {
-        *p = t as time_t;
-    });
+    *createdp = t as time_t;
 
     Ok(())
 });
 
 // PEP_STATUS pgp_binary(const char **path)
 ffi!(fn pgp_binary(path: *mut *mut c_char) -> Result<()> {
-    unsafe { path.as_mut() }.map(|p| *p = ptr::null_mut());
+    let path = unsafe { check_mut!(path) };
+    *path = ptr::null_mut();
     Ok(())
 });
 
@@ -2410,15 +2264,8 @@ ffi!(fn pgp_contains_priv_key(session: *mut Session, fpr: *const c_char,
 {
     let session = Session::as_mut(session)?;
 
-    if fpr.is_null() {
-        return Err(Error::IllegalValue(
-            "fpr may not be NULL".into()));
-    }
-    let fpr = unsafe { CStr::from_ptr(fpr) };
-    let fpr = wrap_err!(
-        Fingerprint::from_hex(&String::from_utf8_lossy(fpr.to_bytes())),
-        UnknownError,
-        "Not a fingerprint")?;
+    let fpr = unsafe { check_fpr!(fpr) };
+    let has_privatep = unsafe { check_mut!(has_privatep) };
 
     let has_private = match session.keystore().cert_find(fpr, true) {
         Ok(_) => true,
@@ -2426,9 +2273,7 @@ ffi!(fn pgp_contains_priv_key(session: *mut Session, fpr: *const c_char,
         Err(err) => return Err(err),
     };
 
-    unsafe { has_privatep.as_mut() }.map(|p| {
-        *p = has_private
-    });
+    *has_privatep = has_private;
 
     Ok(())
 });

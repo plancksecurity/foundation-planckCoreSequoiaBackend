@@ -87,3 +87,66 @@ macro_rules! stub {
         }
     };
 }
+
+// Checks if a `*const T` pointer is NULL if so, returns an error.
+// Otherwise, returns `&T`.
+macro_rules! check_ptr {
+    ($p:ident) => {
+        if let Some(p) = $p.as_ref() {
+            p
+        } else {
+            return Err(Error::IllegalValue(
+                format!("{} must not be NULL", stringify!($p))));
+        }
+    }
+}
+
+// Checks if a `*mut T` pointer is NULL if so, returns an error.
+// Otherwise, returns `&mut T`.
+macro_rules! check_mut {
+    ($p:ident) => {
+        if let Some(p) = $p.as_mut() {
+            p
+        } else {
+            return Err(Error::IllegalValue(
+                format!("{} must not be NULL", stringify!($p))));
+        }
+    }
+}
+
+// Checks if a `*const T` pointer is NULL if so, returns an error.
+// Otherwise, returns a slice `&[T]` with `l` elements.
+macro_rules! check_slice {
+    ($p:ident, $l:expr) => {
+        if $p.is_null() {
+            return Err(Error::IllegalValue(
+                format!("{} must not be NULL", stringify!($p))));
+        } else {
+            std::slice::from_raw_parts($p as *const u8, $l)
+        }
+    }
+}
+
+// Checks if a `*const c_char` pointer is NULL if so, returns an
+// error.  Otherwise, returns a CStr.
+macro_rules! check_cstr {
+    ($s:ident) => {{
+        let _: *const libc::c_char = $s;
+        let s = check_ptr!($s);
+        CStr::from_ptr(s)
+    }}
+}
+
+// Checks if a `*const c_char` pointer is NULL if so, returns an
+// error.  Otherwise, interprets the C string as an OpenPGP
+// fingerprint.  If it is not a valid fingerprint, returns an error.
+// Otherwise returns a `Fingerprint`.
+macro_rules! check_fpr {
+    ($fpr:ident) => {{
+        let fpr = check_cstr!($fpr);
+        wrap_err!(
+            Fingerprint::from_hex(&String::from_utf8_lossy(fpr.to_bytes())),
+            UnknownError,
+            "Not a fingerprint")?
+    }}
+}
