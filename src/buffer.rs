@@ -9,6 +9,7 @@ use std::{
     ptr::{
         copy_nonoverlapping,
     },
+    slice,
 };
 
 use libc::{
@@ -64,6 +65,35 @@ pub fn rust_bytes_to_c_str_lossy<S: AsRef<[u8]>>(mm: MM, s: S)
         *((buf as *mut u8).add(bytes.len())) = 0; // Terminate.
         Ok(buf as *mut c_char)
     }
+}
+
+// Copies a slice to a pointer and length adding a terminating NUL.
+pub fn rust_bytes_to_ptr_and_len<S: AsRef<[u8]>>(mm: MM, s: S,
+                                                 out: &mut *mut c_char,
+                                                 out_len: &mut usize)
+    -> Result<()>
+{
+    let malloc = mm.malloc;
+    let s = s.as_ref();
+    let len = s.len();
+
+    unsafe {
+        // Add a NULL byte.
+        let buffer = malloc(len + 1) as *mut u8;
+        if buffer.is_null() {
+            return Err(Error::OutOfMemory("slice".into(), len + 1));
+        }
+
+        slice::from_raw_parts_mut(buffer, len).copy_from_slice(&s);
+
+        // Set the NUL byte.
+        slice::from_raw_parts_mut(buffer, len + 1)[len] = 0;
+
+        *out = buffer as *mut _;
+        *out_len = len;
+    }
+
+    Ok(())
 }
 
 pub fn malloc_cleared<T>(mm: MM) -> Result<*mut T>

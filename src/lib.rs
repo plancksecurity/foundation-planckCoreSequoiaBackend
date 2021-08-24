@@ -109,9 +109,13 @@ use ffi::MM;
 
 mod keystore;
 use keystore::Keystore;
-mod buffer;
 
-use crate::buffer::rust_bytes_to_c_str_lossy;
+mod buffer;
+use buffer::{
+    rust_bytes_to_c_str_lossy,
+    rust_bytes_to_ptr_and_len,
+};
+
 
 // If the PEP_TRACE environment variable is set or we are built in
 // debug mode, then enable tracing.
@@ -946,7 +950,6 @@ ffi!(fn pgp_sign_only(
 {
     let session = Session::as_mut(session)?;
     let mm = session.mm();
-    let malloc = mm.malloc;
 
     let fpr = unsafe { check_fpr!(fpr) };
     let ptext = unsafe { check_slice!(ptext, psize) };
@@ -1002,22 +1005,7 @@ ffi!(fn pgp_sign_only(
         UnknownError,
         "Finalizing message")?;
 
-    // Add a trailing NUL.
-    stext.push(0);
-
-    // We need to store it in a buffer backed by the libc allocator.
-    unsafe {
-        let buffer = malloc(stext.len()) as *mut u8;
-        if buffer.is_null() {
-            return Err(Error::OutOfMemory("stext".into(), stext.len()));
-        }
-        slice::from_raw_parts_mut(buffer, stext.len())
-            .copy_from_slice(&stext);
-        *stextp = buffer as *mut _;
-
-        // Don't count the trailing NUL.
-        *ssizep = stext.len() - 1;
-    }
+    rust_bytes_to_ptr_and_len(mm, stext, stextp, ssizep)?;
 
     Ok(())
 });
@@ -1035,7 +1023,6 @@ fn pgp_encrypt_sign_optional(
 
     let session = Session::as_mut(session)?;
     let mm = session.mm();
-    let malloc = mm.malloc;
 
     let ptext = unsafe { check_slice!(ptext, psize) };
 
@@ -1149,22 +1136,7 @@ fn pgp_encrypt_sign_optional(
         UnknownError,
         "Finalizing message")?;
 
-    // Add a trailing NUL.
-    ctext.push(0);
-
-    // We need to store it in a buffer backed by the libc allocator.
-    unsafe {
-        let buffer = malloc(ctext.len()) as *mut u8;
-        if buffer.is_null() {
-            return Err(Error::OutOfMemory("ctext".into(), ctext.len()));
-        }
-        slice::from_raw_parts_mut(buffer, ctext.len())
-            .copy_from_slice(&ctext);
-        *ctextp = buffer as *mut _;
-
-        // Don't count the trailing NUL.
-        *csizep = ctext.len() - 1;
-    }
+    rust_bytes_to_ptr_and_len(mm, ctext, ctextp, csizep)?;
 
     Ok(())
 }
@@ -1644,7 +1616,6 @@ ffi!(fn pgp_export_keydata(session: *mut Session,
 {
     let session = Session::as_mut(session)?;
     let mm = session.mm();
-    let malloc = mm.malloc;
 
     let fpr = unsafe { check_fpr!(fpr) };
     t!("({}, {})", fpr, if secret { "secret" } else { "public" });
@@ -1669,22 +1640,7 @@ ffi!(fn pgp_export_keydata(session: *mut Session,
             format!("Serializing certificate: {}", cert.fingerprint()))?;
     }
 
-    // We need a NUL byte at the end.
-    keydata.push(0);
-
-    // We need to store it in a buffer backed by the libc allocator.
-    unsafe {
-        let buffer = malloc(keydata.len()) as *mut u8;
-        if buffer.is_null() {
-            return Err(Error::OutOfMemory("keydata".into(), keydata.len()));
-        }
-        slice::from_raw_parts_mut(buffer, keydata.len())
-            .copy_from_slice(&keydata);
-        *keydatap = buffer as *mut _;
-
-        // Don't count the trailing NUL.
-        *keydata_lenp = keydata.len() - 1;
-    }
+    rust_bytes_to_ptr_and_len(mm, keydata, keydatap, keydata_lenp)?;
 
     Ok(())
 });
