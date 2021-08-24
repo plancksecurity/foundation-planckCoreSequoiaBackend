@@ -1254,12 +1254,7 @@ ffi!(fn _pgp_generate_keypair(session: *mut Session,
     let session = Session::as_mut(session)?;
     let mm = session.mm();
 
-    let identity = if let Some(i) = PepIdentity::as_mut(identity) {
-        i
-    } else {
-        return Err(Error::IllegalValue(
-            "identity must not be NULL".into()));
-    };
+    let identity = PepIdentity::as_mut(identity)?;
     t!("identity: {:?}", identity);
 
     let is_group_identity

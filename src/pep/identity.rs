@@ -34,6 +34,8 @@ use std::ptr;
 use sequoia_openpgp as openpgp;
 use openpgp::Fingerprint;
 
+use crate::Error;
+use crate::Result;
 use crate::buffer::{
     malloc_cleared,
     rust_str_to_c_str,
@@ -118,8 +120,13 @@ impl PepIdentity {
     /// Converts the raw pointer to a Rust reference.
     ///
     /// This does not take ownership of the object.
-    pub fn as_mut(ptr: *mut Self) -> Option<&'static mut Self> {
-        unsafe { ptr.as_mut() }
+    pub fn as_mut(ptr: *mut Self) -> Result<&'static mut Self> {
+        if let Some(identity) = unsafe { ptr.as_mut() } {
+            Ok(identity)
+        } else {
+            Err(Error::IllegalValue(
+                "PepIdentity may not be NULL".into()))
+        }
     }
 
     /// Returns the address.
