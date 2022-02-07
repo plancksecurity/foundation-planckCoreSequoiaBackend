@@ -68,7 +68,7 @@ macro_rules! tracer {
             ( $fmt:expr, $a:expr, $b:expr, $c:expr, $d:expr, $e:expr, $f:expr, $g:expr, $h:expr, $i:expr, $j:expr, $k:expr ) =>
             { trace!($TRACE, "{}: {}", $func, format!($fmt, $a, $b, $c, $d, $e, $f, $g, $h, $i, $j, $k)) };
         }
-        struct Indent {};
+        struct Indent {}
         impl Indent {
             fn init() -> Self {
                 crate::log::INDENT_LEVEL.with(|i| {

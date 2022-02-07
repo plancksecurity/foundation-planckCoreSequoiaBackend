@@ -30,7 +30,7 @@ macro_rules! ffi {
             tracer!(*crate::TRACE, stringify!($f));
 
             // The actual function.
-            fn inner($($v: $t,)*) -> $rt { $body };
+            fn inner($($v: $t,)*) -> $rt { $body }
 
             t!("entered");
             // We use AssertUnwindSafe.  This is safe, because if we
