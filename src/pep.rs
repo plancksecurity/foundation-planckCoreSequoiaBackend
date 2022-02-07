@@ -1,6 +1,7 @@
 use std::ops::BitAnd;
 use std::convert::TryFrom;
 
+#[cfg(not(windows))]
 use libc::tm;
 
 use sequoia_openpgp as openpgp;
@@ -218,20 +219,23 @@ pub enum Error {
 //   https://gitea.pep.foundation/pEp.foundation/pEpEngine/src/branch/master/src/timestamp.h
 #[cfg(not(windows))]
 pub type Timestamp = tm;
+
+#[cfg(windows)]
+use libc::{c_int, c_long};
 #[cfg(windows)]
 #[repr(C)]
 // for time values all functions are using POSIX struct tm
 pub struct Timestamp {
-    tm_sec: c_int,
-    tm_min: c_int,
-    tm_hour: c_int,
-    tm_mday: c_int,
-    tm_mon: c_int,
-    tm_year: c_int,
-    tm_wday: c_int,
-    tm_yday: c_int,
-    tm_isdst: c_int,
-    tm_gmtoff: c_long, // offset from GMT in seconds
+    pub tm_sec: c_int,
+    pub tm_min: c_int,
+    pub tm_hour: c_int,
+    pub tm_mday: c_int,
+    pub tm_mon: c_int,
+    pub tm_year: c_int,
+    pub tm_wday: c_int,
+    pub tm_yday: c_int,
+    pub tm_isdst: c_int,
+    pub tm_gmtoff: c_long, // offset from GMT in seconds
 }
 
 // See pEpEngine/src/pEpEngine.h:PEP_comm_format.

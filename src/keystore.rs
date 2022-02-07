@@ -1,4 +1,5 @@
 use std::cmp;
+#[cfg(not(windows))]
 use std::env;
 use std::path::Path;
 use std::path::PathBuf;

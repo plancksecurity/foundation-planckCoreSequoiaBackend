@@ -3,7 +3,6 @@ use std::convert::TryInto;
 use std::env;
 use std::ffi::{
     CStr,
-    OsStr,
 };
 use std::io::{
     Read,
@@ -18,6 +17,9 @@ use std::time::{
     SystemTime,
     UNIX_EPOCH,
 };
+
+#[allow(unused_imports)]
+use anyhow::Context;
 
 use libc::{
     c_char,
@@ -284,16 +286,23 @@ ffi!(fn pgp_init_(session: *mut Session, _in_first: bool,
 
     #[cfg(not(windows))]
     let per_user_directory = {
+        use std::ffi::OsStr;
         use std::os::unix::ffi::OsStrExt;
         OsStr::from_bytes(per_user_directory.to_bytes())
     };
     #[cfg(windows)]
     let per_user_directory = {
-        use std::ffi::OsString;
-        use std::os::windows::prelude::*;
-
-        let os_string = OsString::from_wide(per_user_directory.as_bytes());
-        os_string.as_os_str()
+        // The engine guarantees that it is UTF-8 encoded.
+        //
+        // https://gitea.pep.foundation/pEp.foundation/pEpEngine/src/commit/2f0927554ac1b7ca10e27b19650b5158d97dfc3f/src/platform_windows.cpp#L177
+        match per_user_directory.to_str() {
+             Ok(s) => s,
+             Err(err) =>
+                 return Err(Error::IllegalValue(
+                     format!("\
+API violation: per_user_directory not UTF-8 encoded ({:?}: {})",
+                             per_user_directory, err))),
+         }
     };
 
     let ks = keystore::Keystore::init(Path::new(per_user_directory))?;
