@@ -19,6 +19,8 @@ fn main() -> Result<(), std::io::Error> {
     if let Some(target_dir) = env::var_os("CARGO_TARGET_DIR") {
         // If CARGO_TARGET_DIR is absolute, this will first clear pc.
         build_dir.push(target_dir);
+    } else {
+        build_dir.push("target");
     }
     let profile = env::var_os("PROFILE")
         .expect("PROFILE not set");
@@ -47,7 +49,9 @@ fn main() -> Result<(), std::io::Error> {
                      .into_string()
                      .expect("CARGO_PKG_VERSION is not UTF-8 encoded"));
 
-    let mut pc = File::create(&pc).unwrap();
+    let mut pc = File::create(&pc).expect(
+        &format!("Creating {:?} (CARGO_TARGET_DIR: {:?})",
+                 pc, env::var_os("CARGO_TARGET_DIR")));
     pc.write_all(content.as_bytes())?;
 
     println!("cargo:rerun-if-changed=build.rs");
