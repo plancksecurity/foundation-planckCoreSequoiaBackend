@@ -29,7 +29,7 @@ memmem = "0.1"
 memoffset = "0.6"
 # When bumping the version of Sequoia search the code for XXX to find
 # spots where we can take advantage of new features.
-sequoia-openpgp = "1.3"
+sequoia-openpgp = { version = "1.0", default-features = false }
 thiserror = "1"
 
 [dependencies.rusqlite]
@@ -38,3 +38,10 @@ features = ["bundled", "collation", "blob"]
 
 [lib]
 crate-type = ["cdylib"]
+
+[features]
+default = [
+    "sequoia-openpgp/default",
+]
+crypto-nettle = ["sequoia-openpgp/crypto-nettle"]
+crypto-cng = ["sequoia-openpgp/crypto-cng"]
