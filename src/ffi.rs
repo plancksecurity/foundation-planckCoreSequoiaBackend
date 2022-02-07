@@ -19,7 +19,7 @@ pub struct MM {
 //
 // This wrapper allows the function to return a Result.  The Ok
 // variant should be ().  It may be something else.  In that case, the
-// value is simply discarded.  The Error variant must be convertable
+// value is simply discarded.  The Error variant must be convertible
 // to a `crate::ErrorCode` using `Into`.
 macro_rules! ffi {
     (fn $f:ident( $( $v:ident: $t:ty ),* ) -> $rt:ty $body:block ) => {

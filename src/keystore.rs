@@ -375,7 +375,7 @@ impl Keystore {
     //
     // If the keydata is in the certificate cache, returns the
     // certificate.  Otherwise, parses the keydata, adds the
-    // certifiate to the cache, and returns the certificate.
+    // certificate to the cache, and returns the certificate.
     fn parse_cert(cache: &mut CertCache, bytes: &[u8]) -> Result<Cert> {
         tracer!(*crate::TRACE, "Keystore::parse_cert");
 
@@ -707,7 +707,7 @@ impl Keystore {
         wrap_err!(
             tx.commit(),
             UnknownDbError,
-            "commiting transaction"
+            "committing transaction"
         )?;
 
         // Cache the updated certificate.  It will likely be used in

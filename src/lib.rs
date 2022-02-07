@@ -1921,7 +1921,7 @@ fn _pgp_key_expired(vc: &ValidCert) -> bool
     }
 
     // Check to see if the key is broken. Ideally, we'd do this in one
-    // pass below, but givem the choice for how to check for expiry,
+    // pass below, but given the choice for how to check for expiry,
     // this is the simplest solutiom.
     if _pgp_key_broken(vc) {
         return false; // still isn't expired. is broken. there's a difference and a different check.
