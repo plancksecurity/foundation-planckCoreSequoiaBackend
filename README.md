@@ -8,7 +8,7 @@ This library provides an implementation of the [p≡p Engine]'s
 Building
 ========
 
-You need at least version 1.48 of `rustc` and `cargo`.
+You need at least version 1.60 of `rustc` and `cargo`.
 
 You can build this library as follows:
 

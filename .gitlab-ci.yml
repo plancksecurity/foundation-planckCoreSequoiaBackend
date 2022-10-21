@@ -109,7 +109,6 @@ rust-stable-armv7:
   before_script:
     - *before_script_start
     - cat .ci/snippet_for_cross_compilation_config.toml >> .cargo/config.toml
-    - rm rust-toolchain
     - *before_script_end
   script:
     - cargo test
@@ -195,8 +194,7 @@ windows-msvc-32:
   before_script:
     # We don't call *before_script_start or *before_script_end as we
     # don't have bash, clang, etc.
-    - rm rust-toolchain
-    - rustup default 1.56.0-x86_64-pc-windows-msvc
+    - rustup default 1.60.0-x86_64-pc-windows-msvc
     - rustup target add i686-pc-windows-msvc
     - rustup show
     - rustc --version --verbose
