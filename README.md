@@ -13,7 +13,7 @@ You need at least version 1.48 of `rustc` and `cargo`.
 You can build this library as follows:
 
 ```
-$ git clone https://gitea.pep.foundation/neal/pEpEngineSequoiaBackend.git
+$ git clone https://gitea.pep.foundation/pEp.foundation/pEpEngineSequoiaBackend.git
 $ cd pEpEngineSequoiaBackend
 $ mkdir -p /tmp/pep_engine_sequoia_backend
 $ CARGO_TARGET_DIR=/tmp/pep_engine_sequoia_backend cargo build # Add --release for a release build
