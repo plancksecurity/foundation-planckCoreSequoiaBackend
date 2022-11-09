@@ -35,7 +35,7 @@ version = "0.25"
 features = ["bundled", "collation", "blob"]
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["lib", "cdylib", "staticlib"]
 
 [features]
 default = [
