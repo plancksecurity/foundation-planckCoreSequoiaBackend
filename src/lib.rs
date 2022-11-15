@@ -28,6 +28,7 @@ use libc::{
     time_t,
 };
 
+use chrono::LocalResult;
 use chrono::Utc;
 use chrono::TimeZone;
 
@@ -1752,13 +1753,21 @@ ffi!(fn pgp_renew_key(session: *mut Session,
     let password = session.curr_passphrase();
     let keystore = session.keystore();
 
-    let expiration = Utc.ymd(1900 + expiration.tm_year,
-                             1 + expiration.tm_mon as u32,
-                             expiration.tm_mday as u32)
-        .and_hms(expiration.tm_hour as u32,
-                 expiration.tm_min as u32,
-                 expiration.tm_sec as u32);
-    let expiration: SystemTime = expiration.into();
+    let expiration = Utc
+        .with_ymd_and_hms(1900 + expiration.tm_year,
+                          1 + expiration.tm_mon as u32,
+                          expiration.tm_mday as u32,
+                          expiration.tm_hour as u32,
+                          expiration.tm_min as u32,
+                          expiration.tm_sec as u32);
+    let expiration = if let LocalResult::Single(t) = expiration {
+        SystemTime::from(t)
+    } else {
+        return Err(Error::UnknownError(
+            anyhow::anyhow!("invalid expiration time ({:?})",
+                            expiration),
+            "invalid expiration time".into()));
+    };
 
     let (cert, _private) = keystore.cert_find(fpr, true)?;
 
