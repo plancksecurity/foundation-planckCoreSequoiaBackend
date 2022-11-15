@@ -18,7 +18,7 @@ maintenance = { status = "actively-developed" }
 [dependencies]
 anyhow = "1"
 backtrace = "0.3.61"
-chrono = "=0.4.23"
+chrono = "0.4.23"
 enumber = "0.3"
 lazy_static = "1"
 libc = "0.2"
