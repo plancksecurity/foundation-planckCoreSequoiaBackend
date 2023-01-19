@@ -60,6 +60,24 @@ bookworm:
     CARGO_HOME: /cargo
   after_script: []
 
+makefile:
+  tags:
+    - linux
+  stage: build
+  image: registry.gitlab.com/sequoia-pgp/build-docker-image/bookworm-prebuild:latest
+  needs:
+    - codespell
+  script:
+    - make build
+    - make test
+    - make clean
+    - DEBUG=debug make test
+  variables:
+    BUILD: /target
+    CARGO_HOME: /cargo
+    CARGO_TARGET_DIR:
+  after_script: []
+
 all_commits:
   # Test each commit up to main, to facilitate bisecting.
   stage: test

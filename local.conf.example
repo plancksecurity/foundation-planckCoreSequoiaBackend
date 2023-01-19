@@ -1,0 +1,17 @@
+# This is an Example build config (local.conf)
+# The values here reflect the defaults.
+# If needed, copy this file into a file called
+# `local.conf` and adjust the values
+
+# The dir where the build artifacts get installed into
+# PREFIX=/usr/local
+
+# Build variant: one of release , debug , maintainer (maintainer exists for
+# compatibility with other pEp projects: in this project maintainer and debug
+# builds are the same).  The default is debug .
+# DEBUG=release
+
+# Defines the build dir.  This can be a relative or an absolute path.
+# BUILD=_build
+
+
