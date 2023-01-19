@@ -1,2 +1,5 @@
 *~
 /target
+_build
+.DS_Store
+*.swp
