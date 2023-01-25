@@ -137,24 +137,19 @@ rust-stable-armv7:
     PKG_CONFIG_PATH: /usr/lib/arm-linux-gnueabihf/pkgconfig
     PKG_CONFIG_ALLOW_CROSS: 1
 
-windows-gnu:
+windows-gnu-cng:
   tags:
     - win
     - win2019
   stage: build
   image: registry.gitlab.com/sequoia-pgp/build-docker-image/windows-gnu
-  # This job takes ~20 minutes to run, let's only execute it manually or for
-  # scheduled builds, otherwise this will stall MRs often not related to Windows
-  only:
-    refs:
-      - /windows/i # refs containing 'windows' keyword
-      - tags
-      - web
-      - schedules
-    variables:
-      # Forks of this project most likely use gitlab's shared windows runners, which
-      # do not use the docker executor, so disable the windows jobs for forks.
-      - $CI_PROJECT_NAMESPACE == "sequoia-pgp"
+  before_script:
+    # the default before_scipt scriptlet doesn't work on Powershell
+    - rustup default "1.60.0"
+    - rustc --version --verbose
+    - cargo --version
+    - clang -v
+    - gpg --version
   script:
     - cargo test
     # https://github.com/rust-lang/cargo/issues/5015
@@ -163,25 +158,16 @@ windows-gnu:
   variables:
     CFLAGS: "" # Silence some C warnings when compiling under Windows
 
-windows-msvc:
+windows-msvc-cng:
   tags:
     - win
     - win2019
   stage: build
   image: registry.gitlab.com/sequoia-pgp/build-docker-image/windows-msvc
-  only:
-    refs:
-      - /windows/i # refs containing 'windows' keyword
-      - tags
-      - web
-      - schedules
-    variables:
-      # Forks of this project most likely use gitlab's shared windows runners, which
-      # do not use the docker executor, so disable the windows jobs for forks.
-      - $CI_PROJECT_NAMESPACE == "sequoia-pgp"
   before_script:
     # We don't call *before_script_start or *before_script_end as we
     # don't have bash, clang, etc.
+    - rustup default "1.60.0"
     - rustc --version --verbose
     - cargo --version
   script:
@@ -191,7 +177,7 @@ windows-msvc:
   variables:
     CFLAGS: "" # Silence some C warnings when compiling with MSVC
 
-windows-msvc-32:
+windows-msvc32-cng:
   tags:
     - win
     - win2019
@@ -204,11 +190,6 @@ windows-msvc-32:
     # Alternatively: ["C:\\BuildTools\\VC\\Auxiliary\\Build\\vcvarsamd64_x86.bat", "&&", "type", "README", "&&", "powershell.exe", "-NoLogo", "-ExecutionPolicy", "Bypass"]
     # see https://docs.microsoft.com/en-us/cpp/build/building-on-the-command-line?view=msvc-160
     entrypoint: ["C:\\BuildTools\\Common7\\Tools\\VsDevCmd.bat", "-arch=x86", "-host_arch=amd64", "&&", "type", "README", "&&", "powershell.exe", "-NoLogo", "-ExecutionPolicy", "Bypass"]
-  only:
-    variables:
-      # Forks of this project most likely use gitlab's shared windows runners, which
-      # do not use the docker executor, so disable the windows jobs for forks.
-      - $CI_PROJECT_NAMESPACE == "sequoia-pgp"
   before_script:
     # We don't call *before_script_start or *before_script_end as we
     # don't have bash, clang, etc.
