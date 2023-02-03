@@ -1,4 +1,4 @@
-# Copyright 2023, pEp Foundation
+# Copyleft 2023, pEp Foundation
 # This file is part of pEpEngineSequoiaBackend
 # This file may be used under the terms of the GNU General Public License version 3
 # see COPYING
