@@ -18,6 +18,9 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\NMakefile" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
     <ProjectGuid>{C0052FAC-9409-4CE4-B4FF-F98EDCDB244B}</ProjectGuid>
@@ -63,11 +66,11 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <NMakeBuildCommandLine>nmake /f NMakefile /e DEBUG=debug</NMakeBuildCommandLine>
-    <NMakeOutput>target\debug\pep_engine_sequoia_backend.dll</NMakeOutput>
-    <NMakeCleanCommandLine>nmake /f NMakefile clean</NMakeCleanCommandLine>
+    <NMakeBuildCommandLine>nmake /f ..\NMakefile /e DEBUG=debug</NMakeBuildCommandLine>
+    <NMakeOutput>$(ProjectPath)..\target\debug\pep_engine_sequoia_backend.dll</NMakeOutput>
+    <NMakeCleanCommandLine>nmake /f ..\NMakefile clean</NMakeCleanCommandLine>
     <NMakePreprocessorDefinitions>_DEBUG;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
-    <NMakeReBuildCommandLine>nmake /f NMakefile /e DEBUG=debug clean build</NMakeReBuildCommandLine>
+    <NMakeReBuildCommandLine>nmake /f ..\NMakefile /e DEBUG=debug clean build</NMakeReBuildCommandLine>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <NMakeBuildCommandLine>nmake /f NMakefile /e DEBUG=debug</NMakeBuildCommandLine>
@@ -82,17 +85,14 @@
     <NMakePreprocessorDefinitions>WIN32;NDEBUG;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <NMakeBuildCommandLine>nmake /f NMakefile</NMakeBuildCommandLine>
-    <NMakeOutput>target\release\pep_engine_sequoia_backend.dll</NMakeOutput>
-    <NMakeCleanCommandLine>nmake /f NMakefile clean</NMakeCleanCommandLine>
+    <NMakeBuildCommandLine>nmake /f ..\NMakefile</NMakeBuildCommandLine>
+    <NMakeOutput>$(ProjectDir)..\target\release\pep_engine_sequoia_backend.dll</NMakeOutput>
+    <NMakeCleanCommandLine>nmake /f ..\NMakefile clean</NMakeCleanCommandLine>
     <NMakePreprocessorDefinitions>NDEBUG;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
-    <NMakeReBuildCommandLine>nmake /f NMakefile clean build</NMakeReBuildCommandLine>
+    <NMakeReBuildCommandLine>nmake /f ..\NMakefile clean build</NMakeReBuildCommandLine>
   </PropertyGroup>
   <ItemDefinitionGroup>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <None Include="NMakefile" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
