@@ -177,6 +177,25 @@ windows-msvc-cng:
   variables:
     CFLAGS: "" # Silence some C warnings when compiling with MSVC
 
+windows-msvc-nmakefile:
+  tags:
+    - win
+    - win2019
+  stage: build
+  image: registry.gitlab.com/sequoia-pgp/build-docker-image/windows-msvc
+  before_script:
+    # We don't call *before_script_start or *before_script_end as we
+    # don't have bash, clang, etc.
+    - rustup default "1.60.0"
+    - rustup show active-toolchain
+    - rustc --version --verbose
+    - cargo --version
+  script:
+    - nmake /F NMakefile
+  after_script: []
+  variables:
+    CFLAGS: "" # Silence some C warnings when compiling with MSVC
+
 windows-msvc32-cng:
   tags:
     - win
