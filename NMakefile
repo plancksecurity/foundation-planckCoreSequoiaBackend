@@ -1,0 +1,31 @@
+# Copyleft 2023, pEp Foundation
+# This file is part of pEpEngineSequoiaBackend
+# This file may be used under the terms of the GNU General Public License version 3
+# see COPYING
+
+# Build config defaults
+# To get a debug build define DEBUG in local.mak
+#DEBUG=debug
+CARGO=cargo
+
+# Build config overrides
+!IF EXISTS(local.mak)
+!include .\local.mak
+!ENDIF
+
+# Define build target and flags
+!IFDEF DEBUG
+TARGET=target\debug\pep_engine_sequoia_backend.dll
+CARGOFLAGS=
+!ELSE
+TARGET=target\release\pep_engine_sequoia_backend.dll
+CARGOFLAGS=--release
+!ENDIF
+
+build:
+	$(CARGO) build --features crypto-cng --no-default-features $(CARGOFLAGS)
+	@echo.
+	@echo Built $(TARGET)
+
+clean:
+	rd /s /q target

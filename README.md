@@ -5,8 +5,9 @@ This library provides an implementation of the [p≡p Engine]'s
   [cryptotech]: https://gitea.pep.foundation/pEp.foundation/pEpEngine/src/branch/master/src/cryptotech.h
   [Sequoia]: https://sequoia-pgp.org
 
-Building
-========
+# Building
+
+## Linux and MacOS
 
 You need at least version 1.60 of `rustc` and `cargo`.
 
@@ -51,3 +52,48 @@ variable. For example:
 $ cd ~/src/pEpEngine/test
 $ PKG_CONFIG_PATH=/tmp/pep_engine_sequoia_backend/debug${PKG_CONFIG_PATH+:$PKG_CONFIG_PATH} LD_LIBRARY_PATH=$(for p in $(pkg-config pep_engine_sequoia_backend --libs-only-L); do echo ${p#-L}; done | paste -sd ':')${LD_LIBRARY_PATH+:$LD_LIBRARY_PATH} PEP_TRACE=1 ./EngineTests -- --gtest_filter=DeleteKeyTest.check_delete_single_pubkey
 ```
+
+## Windows
+
+On Windows, the Sequoia PGP backend for the pEp engine uses the CNG
+backend.
+
+### Use the Visual Studio compatible Rust compiler
+
+You can check this by trying:
+
+```text
+C:\Users\vb\source\repos\pEpEngineSequoiaBackend> rustup show active-toolchain
+1.60.0-x86_64-pc-windows-msvc (default)
+```
+
+### Call NMake with the delivered NMakefile
+
+```text
+C:\Users\vb\source\repos\pEpEngineSequoiaBackend> nmake /F NMakefile
+
+Microsoft (R) Program Maintenance Utility, Version 14.34.31937.0
+Copyright (C) Microsoft Corporation. Alle Rechte vorbehalten.
+
+        cargo build --features crypto-cng --no-default-features --release
+    Finished release [optimized] target(s) in 0.20s
+
+Built target\release\pep_engine_sequoia_backend.dll
+```
+
+### To get a debug version instead of the release set environment DEBUG=debug
+
+```text
+C:\Users\vb\source\repos\pEpEngineSequoiaBackend> nmake /F NMakefile /E DEBUG=debug
+
+Microsoft (R) Program Maintenance Utility, Version 14.34.31937.0
+Copyright (C) Microsoft Corporation. Alle Rechte vorbehalten.
+
+        cargo build --features crypto-cng --no-default-features
+    Finished dev [unoptimized + debuginfo] target(s) in 0.18s
+
+Built target\debug\pep_engine_sequoia_backend.dll
+```
+
+Unlike with GNU Make, `DEBUG` must not be defined if you want to build a
+release.

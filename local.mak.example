@@ -1,0 +1,6 @@
+# to get a debug version define the DEBUG macro
+# other than with GNU Make DEBUG must not be defined if you want to build a
+# release
+
+#DEBUG=debug
+
