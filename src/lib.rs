@@ -314,7 +314,12 @@ API violation: per_user_directory not UTF-8 encoded ({:?}: {})",
 
 // void pgp_release(PEP_SESSION session, bool out_last)
 ffi!(fn pgp_release(session: *mut Session, _out_last: bool) -> Result<()> {
-    Session::as_mut(session)?.deinit();
+    // In C, it is usually okay to call a destructor, like `free`,
+    // with a `NULL` pointer: the function just does nothing.
+    // Implement the same semantics.
+    if ! session.is_null() {
+        Session::as_mut(session)?.deinit();
+    }
     Ok(())
 });
 
