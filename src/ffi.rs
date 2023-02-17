@@ -127,6 +127,19 @@ macro_rules! check_slice {
     }
 }
 
+// Checks if a `*mut T` pointer is NULL if so, returns an error.
+// Otherwise, returns a slice `&mut [T]` with `l` elements.
+macro_rules! check_slice_mut {
+    ($p:ident, $l:expr) => {
+        if $p.is_null() {
+            return Err(Error::IllegalValue(
+                format!("{} must not be NULL", stringify!($p))));
+        } else {
+            std::slice::from_raw_parts_mut($p as *mut u8, $l)
+        }
+    }
+}
+
 // Checks if a `*const c_char` pointer is NULL if so, returns an
 // error.  Otherwise, returns a CStr.
 macro_rules! check_cstr {

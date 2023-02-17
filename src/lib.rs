@@ -2256,3 +2256,55 @@ ffi!(fn pgp_contains_priv_key(session: *mut Session, fpr: *const c_char,
 
     Ok(())
 });
+
+// PEP_STATUS pgp_random(char *buffer, size_t len)
+ffi!(fn pgp_random(buffer: *mut c_char, len: size_t) -> Result<()> {
+    let buffer = unsafe { check_slice_mut!(buffer, len) };
+    openpgp::crypto::random(buffer);
+    Ok(())
+});
+
+#[test]
+fn test_random() {
+    fn rand(i: usize) -> Vec<u8> {
+        let mut buffer = vec![0u8; i];
+        let result = pgp_random(buffer.as_mut_ptr() as *mut c_char, i);
+        assert_eq!(result, 0, "pgp_random does not fail");
+        buffer
+    }
+
+    for _ in 0..32 {
+        // Get a bunch of bytes, sum them and figure out the average.
+        let mut total = 0u64;
+        let mut ones_count = 0u64;
+        let mut samples = 0;
+        for i in 0..128 {
+            let buffer = rand(i);
+            for e in buffer.into_iter() {
+                total += e as u64;
+                ones_count += (e as u8).count_ones() as u64;
+                samples += 1;
+            }
+        }
+
+        // On average we expect: total / samples to be 127.5.  Fail if it is
+        // very unlikely (probability is left as an exercise for the
+        // reader).
+        assert!(samples > 0);
+        let average = total / samples;
+        eprintln!("{} / {} = {}", total, samples, average);
+        assert!(128 - 8 < average && average < 128 + 8,
+                "{} is extremely unlikely, your random number generator \
+                 is broken",
+                average);
+
+        // On average, we should have 4 ones.
+        let average_ones = ones_count / samples;
+        eprintln!("ones count: {} / {} = {}",
+                  ones_count, samples, average_ones);
+        assert!(3 * samples <= ones_count && ones_count <= 5 * samples,
+                "Average number of ones ({}) is extremely unlikely, \
+                 your random number generator is broken",
+                average_ones);
+    }
+}
