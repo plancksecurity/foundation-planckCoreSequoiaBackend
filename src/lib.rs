@@ -148,6 +148,25 @@ ffi!(fn pgp_config_cipher_suite(session: *mut Session, suite: PepCipherSuite)
     session.set_cipher_suite(suite)
 });
 
+// Given the pEp cipher suite indicator enum, returns whether the
+// cipher suite is supported.
+//
+// Returns `StatusOk` if it is supported, and `CannotConfig` is not
+// supported by the current cryptographic backend.
+ffi!(fn pgp_cipher_suite_is_supported(session: *mut Session,
+                                      suite: PepCipherSuite)
+    -> Result<()>
+{
+    let _session = Session::as_mut(session)?;
+
+    let suite: Result<openpgp::cert::CipherSuite> = suite.try_into();
+    if let Err(_err) = suite {
+        Err(Error::CannotConfig("cipher suite".into()))
+    } else {
+        Ok(())
+    }
+});
+
 // Decrypts the key.
 //
 // On success, returns the decrypted key.
