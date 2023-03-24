@@ -9,7 +9,7 @@ readme = "README.md"
 keywords = ["cryptography", "openpgp", "pgp", "encryption", "signing"]
 categories = ["cryptography", "authentication", "email"]
 license = "GPL-3.0-or-later"
-edition = "2018"
+edition = "2021"
 rust-version = "1.60"
 
 [badges]
