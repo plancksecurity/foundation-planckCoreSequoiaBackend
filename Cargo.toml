@@ -27,19 +27,24 @@ memmem = "0.1"
 memoffset = "0.6"
 # When bumping the version of Sequoia search the code for XXX to find
 # spots where we can take advantage of new features.
-sequoia-openpgp = { version = "1.0", default-features = false }
+sequoia-openpgp = { version = "1.0", default-features = false, features = ["compression"] }
 thiserror = "1"
 
 [dependencies.rusqlite]
-version = "0.25"
+version = "0.28"
 features = ["bundled", "collation", "blob"]
 
 [lib]
 crate-type = ["lib", "cdylib", "staticlib"]
 
-[features]
-default = [
-    "sequoia-openpgp/default",
-]
-crypto-nettle = ["sequoia-openpgp/crypto-nettle"]
-crypto-cng = ["sequoia-openpgp/crypto-cng"]
+[target.'cfg(not(windows))'.dev-dependencies]
+# Enables a crypto backend for the tests:
+sequoia-openpgp = { version = "1", default-features = false, features = ["crypto-nettle"]  }
+
+[target.'cfg(windows)'.dev-dependencies]
+# Enables a crypto backend for the tests:
+sequoia-openpgp = { version = "1", default-features = false, features = ["crypto-cng"] }
+
+[package.metadata.docs.rs]
+# Enables a crypto backend for the docs.rs generation:
+features = ["sequoia-openpgp/default"]
