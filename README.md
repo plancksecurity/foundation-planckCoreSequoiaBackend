@@ -9,7 +9,7 @@ This library provides an implementation of the [pEp Engine]'s
 
 ## Linux and MacOS
 
-You need at least version 1.60 of `rustc` and `cargo`.
+You need at least version 1.63 of `rustc` and `cargo`.
 
 You can build this library as follows:
 
