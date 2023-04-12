@@ -2327,3 +2327,161 @@ fn test_random() {
                 average_ones);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::pep::Session;
+
+    // $ sq --force key generate --cannot-authenticate \
+    //   --expires never --userid '<alice@example.org>' \
+    //   --export alice.pgp
+    const ALICE_PGP: &'static str = "\
+-----BEGIN PGP PRIVATE KEY BLOCK-----
+Comment: 64E7 981D 4220 C6D2 6638  EA7C B72F C47E 011B C764
+Comment: <alice@example.org>
+
+xVgEZDcXhRYJKwYBBAHaRw8BAQdAu8SZs5zqYLLBaMpfbIuRg9CDuQNnkxGqCEiv
+MnD0czYAAQD2c2gL/jPZzZHbBQ2OHycdNOep79BLfs6ZBYiTodrukBDvwsALBB8W
+CgB9BYJkNxeFAwsJBwkQty/EfgEbx2RHFAAAAAAAHgAgc2FsdEBub3RhdGlvbnMu
+c2VxdW9pYS1wZ3Aub3Jn37FPCmBUoG7ZfDm0Q7haM6zbXc/00GediXbjruMVCU8D
+FQoIApsBAh4BFiEEZOeYHUIgxtJmOOp8ty/EfgEbx2QAAKL8AQD3bT5GYlfah/jx
+agUUPAU9awR17PJiF6qWZjhk0wX5GgEAyn0OjvpkCh8IUVXpgtmuN8NoBHXvLrPH
+FPpmBRhuEQfNEzxhbGljZUBleGFtcGxlLm9yZz7CwA4EExYKAIAFgmQ3F4UDCwkH
+CRC3L8R+ARvHZEcUAAAAAAAeACBzYWx0QG5vdGF0aW9ucy5zZXF1b2lhLXBncC5v
+cmfHWWYTVAdC9hBB3QvxZv+gKmr8p8yP48nf/4pMJHCbeQMVCggCmQECmwECHgEW
+IQRk55gdQiDG0mY46ny3L8R+ARvHZAAAkPcA/06QXtr0odpnQTQAzbgnDHCTisPv
+TeWhbP8Bu6dPSIjPAP9aZPn+s+Pdc52SEHBOQyM5dyWpbzvgLgwzNCetez6vDcdY
+BGQ3F4UWCSsGAQQB2kcPAQEHQFda1LIxdqccxiIgIbHXral59VRIPqrBnCSUckTe
+lZsSAAD/f7zaMPxIrEVkSkevdsdg5Om0Cgyz+SF8f9/763kPWF4SHMLAvwQYFgoB
+MQWCZDcXhQkQty/EfgEbx2RHFAAAAAAAHgAgc2FsdEBub3RhdGlvbnMuc2VxdW9p
+YS1wZ3Aub3Jn7pAplEnQhQvvgDihCw52kKa/JT50MTuZPkDY5bpsVhMCmwK+oAQZ
+FgoAbwWCZDcXhQkQ2W9Jvvf+shBHFAAAAAAAHgAgc2FsdEBub3RhdGlvbnMuc2Vx
+dW9pYS1wZ3Aub3JnOmJvUfEy2ymUu3MyS+J92P2nuaBYjpJ2L6hcuf8Bm+gWIQQV
+Suent38vsP649abZb0m+9/6yEAAApsYA/0Pdfn61X/u1GEVhCc0bKkBVYHwlXEJa
+nQ+9KBVaJFWnAQCh5bNyeV+8MU9odXZWxa8sg1VeDkFCTppWTsZTH9UHBRYhBGTn
+mB1CIMbSZjjqfLcvxH4BG8dkAABsNAEA9SQeJIPp9SMFJY2nCcclv0u/KxfZTBOJ
+1jfMU8LrJZAA/34fNxcn99iv23yIv1QnZtBogP5cfcxxhnaHlVPnaDAMx10EZDcX
+hRIKKwYBBAGXVQEFAQEHQLgFZFFGd+IWWAehV4i7b23SLLsxlaWsacPSkFswfl59
+AwEIBwAA/1Wj3K1G1S95h+0jhugeYnj1LZLWO4PiaiiSBCN3IxNoD8rCwAAEGBYK
+AHIFgmQ3F4UJELcvxH4BG8dkRxQAAAAAAB4AIHNhbHRAbm90YXRpb25zLnNlcXVv
+aWEtcGdwLm9yZxtd7Kn2Jmj5NYfdhBVEL2qLvRZAvnfp5oveXeradLAhApsMFiEE
+ZOeYHUIgxtJmOOp8ty/EfgEbx2QAAMDtAQC5fuVHyLfl1SqncTZaZkdaoSEqHdZA
+4RICLYzXmmut2gD/U5k61iRwqBWiepJ1IBNQKJvq4j0CWr0LaUk4FtGi6go=
+=qYY6
+-----END PGP PRIVATE KEY BLOCK-----
+";
+
+    // $ echo hi, pep | sq encrypt --recipient-file alice.pgp --signer-file alice.pgp > msg.pgp
+    // $ sq decrypt --recipient-file alice.pgp --dump-session-key msg.pgp
+    // Session key: 09B40F05C8F12C7FF6F409698E2358C221654CDC7E300872686FEF1E16EF2385
+    // Encrypted using AES-256
+    // Compressed using ZIP
+    // No key to check checksum from 154AE7A7B77F2FB0FEB8F5A6D96F49BEF7FEB210
+    // hi, pep
+    // 1 unknown checksum.
+    // $ sq packet dump --session-key 09B40F05C8F12C7FF6F409698E2358C221654CDC7E300872686FEF1E16EF2385 msg.pgp
+    // Public-Key Encrypted Session Key Packet, new CTB, 94 bytes
+    //     Version: 3
+    //     Recipient: 003F542BE1540CD4
+    //     Pk algo: ECDH
+    //   
+    // Sym. Encrypted and Integrity Protected Data Packet, new CTB, 300 bytes
+    // │   Version: 1
+    // │   Session key: 09B40F05C8F12C7FF6F409698E2358C221654CDC7E300872686FEF1E16EF2385
+    // │   Symmetric algo: AES-256
+    // │   Decryption successful
+    // │ 
+    // ├── Compressed Data Packet, new CTB, 256 bytes
+    // │   │   Algorithm: ZIP
+    // │   │ 
+    // │   ├── One-Pass Signature Packet, new CTB, 13 bytes
+    // │   │       Version: 3
+    // │   │       Type: Binary
+    // │   │       Pk algo: EdDSA
+    // │   │       Hash algo: SHA512
+    // │   │       Issuer: D96F49BEF7FEB210
+    // │   │       Last: true
+    // │   │     
+    // │   ├── Literal Data Packet, new CTB, 14 bytes
+    // │   │       Format: Binary data
+    // │   │       Content: "hi, pep\n"
+    // │   │     
+    // │   └── Signature Packet, new CTB, 212 bytes
+    // │           Version: 4
+    // │           Type: Binary
+    // │           Pk algo: EdDSA
+    // │           Hash algo: SHA512
+    // │           Hashed area:
+    // │             Signature creation time: 2023-04-12 20:42:56 UTC (critical)
+    // │             Issuer: D96F49BEF7FEB210
+    // │             Notation: salt@notations.sequoia-pgp.org
+    // │               00000000  a3 9e a8 6a 74 da a0 e6  8a 92 9d 06 8a 08 ad c6
+    // │               00000010  68 35 48 0a a8 f4 79 cf  2f 4e 58 94 95 93 42 31
+    // │             Issuer Fingerprint: 154AE7A7B77F2FB0FEB8F5A6D96F49BEF7FEB210
+    // │             Intended Recipient: 64E7981D4220C6D26638EA7CB72FC47E011BC764
+    // │           Digest prefix: 843B
+    // │           Level: 0 (signature over data)
+    // │         
+    // └── Modification Detection Code Packet, new CTB, 20 bytes
+    //         Digest: 430056320490BE00DD9695E9DA5964207E54844B
+    //         Computed digest: 430056320490BE00DD9695E9DA5964207E54844B
+    const CTEXT: &'static str = "\
+-----BEGIN PGP MESSAGE-----
+
+wV4DAD9UK+FUDNQSAQdAjozAEPDG+bvHV3YjHuBcJMhPfltHaK83R6kSyvIYSHUw
+4k+spf7kJJ73EMrhgzlf92Ems0RZXTeCDOKKDFAP1yfXP1ZIX3WVHraMsOg3zQSc
+0sBsAVbTDJEvN8Y94sDQtZkj7gObqTyyQZAe+oj2ZXxY+b+uGJ+9sAP26mdubfZ+
+HyduxJC2nlImUwC/TMInblDyJNUiOJz5i9Wa73I8A0EkGFsdWbXQ5RkK82oQx8Bi
+UYr+5DzpYhuKgqgEA46KdQv9L92sUzv/tyRaLH3i6sSmzioWDuSGPxBf6sGrywWc
+tCgdoM9Lnwuhbv60Qobm1MfLMCwwkbXsy0rH6Pel5kWPnBrNWEi3hNhzMGeDKD9S
+izKTrCcA1NbpFL7nndShmIlRFZ5q+XNdyWB0STFaPV5uzfCnxXpNrz7m4EXOFSZP
+k4tPxebef5BpUqRxdEhHQab24bTKrI1cWa9pJdpWQrssEPE7y7pNB83p/I+fKqYv
+7ykni6KBcL+Bcyf6d3xx
+=PALz
+-----END PGP MESSAGE-----
+";
+
+    const MSG: &'static str = "hi, pep\n";
+
+    #[test]
+    fn decrypt() -> Result<()> {
+        // This uses an in-memory keystore.
+        let session = Session::new();
+
+        let rc = pgp_import_keydata(
+            session,
+            ALICE_PGP.as_ptr() as *const c_char, ALICE_PGP.len(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut());
+        assert_eq!(rc, Error::KeyImported.into());
+
+        let mut plaintext: *mut c_char = std::ptr::null_mut();
+        let mut plaintext_len: size_t = 0;
+
+        let mut keylist: *mut StringListItem = std::ptr::null_mut();
+
+        let rc = pgp_decrypt_and_verify(
+            session,
+            CTEXT.as_ptr() as *const c_char, CTEXT.len(),
+            std::ptr::null(), 0, // dsigtext, dsigsize
+            &mut plaintext, &mut plaintext_len as *mut _,
+            &mut keylist as *mut *mut _,
+            std::ptr::null_mut(), // filename_ptr
+        );
+
+        // If this returns Error::MalformedMessage, it probably means
+        // that decompression is not enabled.
+        assert_eq!(rc, Error::DecryptedAndVerified.into());
+
+        let ptext = unsafe { check_slice!(plaintext, plaintext_len) };
+        assert_eq!(ptext, MSG.as_bytes());
+
+        // Clean up.
+        unsafe { Box::from_raw(session) };
+
+        Ok(())
+    }
+}
