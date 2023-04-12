@@ -24,7 +24,7 @@ lazy_static = "1"
 libc = "0.2"
 lru = "0.10.0"
 memmem = "0.1"
-memoffset = "0.6"
+memoffset = "0.8"
 # When bumping the version of Sequoia search the code for XXX to find
 # spots where we can take advantage of new features.
 sequoia-openpgp = { version = "1.0", default-features = false }
