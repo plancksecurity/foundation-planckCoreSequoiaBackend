@@ -39,6 +39,16 @@ fn main() -> Result<(), std::io::Error> {
     // This is set to allow the use of the library from the build
     // directory.
     let content = String::from_utf8(content).unwrap()
+        .replace("REQUIRES",
+                 if cfg!(feature = "crypto-botan") {
+                     "botan-2"
+                 } else if cfg!(feature = "crypto-nettle") {
+                     "nettle"
+                 } else if cfg!(feature = "crypto-cng") {
+                     ""
+                 } else {
+                     panic!("Don't know dependencies to add to .pc file")
+                 })
         .replace("LIBDIR",
                  &build_dir
                      .to_str()

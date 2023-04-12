@@ -5,6 +5,6 @@ Name: pEpEngineSequoiaBackend
 Description: An implementation of the pEp Engine's crypttext interface using Sequoia
 URL: https://sequoia-pgp.org/
 Version: VERSION
-Requires: botan-2
+Requires: REQUIRES
 Cflags:
 Libs: -L${libdir} -lpep_engine_sequoia_backend
