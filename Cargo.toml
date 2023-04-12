@@ -31,7 +31,7 @@ sequoia-openpgp = { version = "1.0", default-features = false }
 thiserror = "1"
 
 [dependencies.rusqlite]
-version = "0.25"
+version = "0.29"
 features = ["bundled", "collation", "blob"]
 
 [lib]
