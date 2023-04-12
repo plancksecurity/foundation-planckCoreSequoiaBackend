@@ -39,7 +39,7 @@ crate-type = ["lib", "cdylib", "staticlib"]
 
 [features]
 default = [
-    "sequoia-openpgp/default",
+    "crypto-botan",
 ]
 crypto-nettle = ["sequoia-openpgp/crypto-nettle"]
 crypto-botan = ["sequoia-openpgp/crypto-botan"]

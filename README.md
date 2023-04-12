@@ -29,8 +29,8 @@ variable.
 
 ## Windows
 
-On Windows, the Sequoia PGP backend for the pEp engine uses the CNG
-backend.
+On Windows, the Sequoia PGP backend for the pEp engine also uses the
+Botan backend.
 
 ### Use the Visual Studio compatible Rust compiler
 
