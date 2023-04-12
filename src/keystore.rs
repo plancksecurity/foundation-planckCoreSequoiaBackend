@@ -46,7 +46,8 @@ const CACHE_HASH: HashAlgorithm = HashAlgorithm::SHA256;
 
 // The number of entries in the cache.  Do not make this too big since
 // we iterate over the cache to purge stale entries.
-const CERT_CACHE_ENTRIES: usize = 32;
+const CERT_CACHE_ENTRIES: std::num::NonZeroUsize
+    = unsafe { std::num::NonZeroUsize::new_unchecked(32) };
 
 type CertCache = LruCache<Vec<u8>, Cert>;
 
@@ -359,13 +360,14 @@ impl Keystore {
             .map(|(digest, cert)| (digest, cert.fingerprint()))
             .filter(|(_digest, other)| &fpr == other)
             .map(|(digest, _)| digest)
-            .collect::<Vec<_>>();
+            .cloned()
+            .collect::<Vec<Vec<u8>>>();
         if purge.len() > 0 {
             t!("Purging {} stale entries that also map to {}",
                purge.len(), fpr);
         }
         for stale_digest in purge {
-            cache.pop(stale_digest);
+            cache.pop(&stale_digest);
         }
 
         // Add the new entry to the cache.

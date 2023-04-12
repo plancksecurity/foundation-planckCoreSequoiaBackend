@@ -22,7 +22,7 @@ chrono = "0.4.23"
 enumber = "0.3"
 lazy_static = "1"
 libc = "0.2"
-lru = "0.6.6"
+lru = "0.10.0"
 memmem = "0.1"
 memoffset = "0.6"
 # When bumping the version of Sequoia search the code for XXX to find
