@@ -50,6 +50,7 @@ bookworm:
   tags:
     - linux
   stage: build
+  interruptible: true
   image: registry.gitlab.com/sequoia-pgp/build-docker-image/bookworm-prebuild:latest
   needs:
     - codespell
@@ -65,6 +66,7 @@ makefile:
   tags:
     - linux
   stage: build
+  interruptible: true
   image: registry.gitlab.com/sequoia-pgp/build-docker-image/bookworm-prebuild:latest
   needs:
     - codespell
@@ -83,6 +85,7 @@ makefile:
 all_commits:
   # Test each commit up to main, to facilitate bisecting.
   stage: test
+  interruptible: true
   image: registry.gitlab.com/sequoia-pgp/build-docker-image/rust-stable-prebuild:latest
   needs: ["rust-stable"]
   script:
@@ -97,6 +100,7 @@ codespell:
   tags:
     - linux
   stage: pre-check
+  interruptible: true
   image: registry.gitlab.com/sequoia-pgp/build-docker-image/bookworm:latest
 
   before_script:
@@ -111,6 +115,7 @@ rust-stable:
   tags:
     - linux
   stage: build
+  interruptible: true
   image: registry.gitlab.com/sequoia-pgp/build-docker-image/rust-stable-prebuild:latest
   before_script:
     - *before_script_start
@@ -127,6 +132,7 @@ rust-stable-armv7:
   tags:
     - linux
   stage: build
+  interruptible: true
   image: registry.gitlab.com/sequoia-pgp/build-docker-image/bullseye-cross-arm-prebuild:latest
   before_script:
     - *before_script_start
@@ -147,6 +153,7 @@ windows-gnu-cng:
     - win
     - win2019
   stage: build
+  interruptible: true
   image: registry.gitlab.com/sequoia-pgp/build-docker-image/windows-gnu
   before_script:
     # the default before_scipt scriptlet doesn't work on Powershell
@@ -168,6 +175,7 @@ windows-msvc-cng:
     - win
     - win2019
   stage: build
+  interruptible: true
   image: registry.gitlab.com/sequoia-pgp/build-docker-image/windows-msvc
   before_script:
     # We don't call *before_script_start or *before_script_end as we
@@ -187,6 +195,7 @@ windows-msvc-nmakefile:
     - win
     - win2019
   stage: build
+  interruptible: true
   image: registry.gitlab.com/sequoia-pgp/build-docker-image/windows-msvc
   before_script:
     # We don't call *before_script_start or *before_script_end as we
@@ -206,6 +215,7 @@ windows-msvc-msbuild:
     - win
     - win2019
   stage: build
+  interruptible: true
   image: registry.gitlab.com/sequoia-pgp/build-docker-image/windows-msvc
   before_script:
     # We don't call *before_script_start or *before_script_end as we
@@ -228,6 +238,7 @@ windows-msvc32-cng:
     - win
     - win2019
   stage: build
+  interruptible: true
   image:
     name: registry.gitlab.com/sequoia-pgp/build-docker-image/windows-msvc
     # Set up a cross compilation environment for building x86 binaries on amd64, line copied from Dockerfile.windows.msvc
