@@ -1,7 +1,7 @@
 [package]
 name = "pep_engine_sequoia_backend"
 description = "An implementation of the p≡p Engine's cryptotech interface using Sequoia."
-version = "1.0.0"
+version = "1.1.0"
 authors = ["Neal H. Walfield <neal@pep.foundation>"]
 homepage = "https://sequoia-pgp.org/"
 repository = "https://gitea.pep.foundation/pEp.foundation/pEpEngineSequoiaBackend/"
