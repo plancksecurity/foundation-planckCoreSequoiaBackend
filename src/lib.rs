@@ -762,7 +762,13 @@ ffi!(fn pgp_decrypt_and_verify(session: *mut Session,
     let session = Session::as_mut(session)?;
     let mm = session.mm();
     let malloc = mm.malloc;
-
+    android_logd_logger::builder()
+        .parse_filters("debug")
+        .tag("log_tag")
+        .prepend_module(true)
+        .init();
+    android_logd_logger::write_event_now(1, "pgp_decrypt_and_verify inside").unwrap();
+    //debug!("pgp_decrypt_and_verify inside");
     let ctext = unsafe { check_slice!(ctext, csize) };
 
     // XXX: We don't handle detached signatures over encrypted

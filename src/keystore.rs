@@ -25,7 +25,7 @@ use openpgp::{
     parse::Parse,
     serialize::Serialize,
     types::HashAlgorithm,
-    types::RevocationStatus,
+    //types::RevocationStatus,
 };
 
 use crate::Result;
@@ -754,8 +754,7 @@ impl Keystore {
         let mut add_key = |cert: &Cert| {
             match cert.with_policy(crate::P, None) {
                 Ok(vc) => {
-                    let revoked = matches!(vc.revocation_status(),
-                                           RevocationStatus::Revoked(_));
+                    let revoked = false;
 
                     let userid = if revoked {
                         vc
