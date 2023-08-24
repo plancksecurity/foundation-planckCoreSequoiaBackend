@@ -739,8 +739,9 @@ impl<'a> DecryptionHelper for &mut Helper<'a> {
             } else if missing_passphrase {
                 Err(Error::PassphraseRequired.into())
             } else {
-                Err(Error::DecryptNoKey(
-                    anyhow::anyhow!("No key")).into())
+                // Err(Error::DecryptNoKey(
+                //     anyhow::anyhow!("No key")).into())
+                Err(Error::CannotCreateKey(anyhow::anyhow!("No Key but fake"), "fake".to_owned()).into())
             }
         }
     }
@@ -791,7 +792,8 @@ ffi!(fn pgp_decrypt_and_verify(session: *mut Session,
         Err(err) => {
             match err.downcast::<Error>() {
                 Ok(err) => return Err(err),
-                Err(err) => return Err(Error::DecryptNoKey(err)),
+                //Err(err) => return Err(Error::DecryptNoKey(err)),
+                Err(err) => return Err(Error::VerifyNoKey(err)),
             }
         }
     };
@@ -803,7 +805,8 @@ ffi!(fn pgp_decrypt_and_verify(session: *mut Session,
 
     let h = decryptor.helper_mut();
     if ! h.decrypted {
-        return Err(Error::DecryptNoKey(anyhow::anyhow!("decryption failed")));
+        //return Err(Error::DecryptNoKey(anyhow::anyhow!("decryption failed")));
+        return Err(Error::CannotDeleteKey(anyhow::anyhow!("decryption failed"), "Hee".to_owned()));
     }
 
     // Add a terminating NUL for naive users.
