@@ -17,6 +17,11 @@ use std::time::{
     SystemTime,
     UNIX_EPOCH,
 };
+#[macro_use] extern crate log as andlog;
+extern crate android_logger;
+
+use log::LevelFilter;
+use android_logger::{Config,FilterBuilder};
 
 #[allow(unused_imports)]
 use anyhow::Context;
@@ -118,7 +123,6 @@ use buffer::{
     rust_bytes_to_c_str_lossy,
     rust_bytes_to_ptr_and_len,
 };
-
 
 // If the PEP_TRACE environment variable is set or we are built in
 // debug mode, then enable tracing.
@@ -739,8 +743,9 @@ impl<'a> DecryptionHelper for &mut Helper<'a> {
             } else if missing_passphrase {
                 Err(Error::PassphraseRequired.into())
             } else {
-                Err(Error::DecryptNoKey(
-                    anyhow::anyhow!("No key")).into())
+                Err(Error::Decrypted.into())
+                //Err(Error::DecryptNoKey(
+                //    anyhow::anyhow!("No key")).into())
             }
         }
     }
@@ -885,7 +890,19 @@ ffi!(fn pgp_verify_text(session: *mut Session,
 {
     let session = Session::as_mut(session)?;
     let mm = session.mm();
+    android_logger::init_once(
+        Config::default()
+            .with_max_level(LevelFilter::Trace) // limit log level
+            .with_tag("mytag") // logs will show under mytag tag
+            .with_filter( // configure messages for specific crate
+                FilterBuilder::new()
+                    .parse("debug,hello::crate=error")
+                    .build())
+    );
 
+    //trace!("this is a verbose {:?}", "message");
+    error!("this is printed by default");
+    
     if size == 0 || sig_size == 0 {
         return Err(Error::DecryptWrongFormat);
     }
