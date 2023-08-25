@@ -173,7 +173,7 @@ fn _pgp_get_decrypted_key(key: Key<key::SecretParts, key::UnspecifiedRole>,
                           pass: Option<&Password>)
     -> Result<Key<key::SecretParts, key::UnspecifiedRole>>
 {
-    trace!("_pgp_get_decrypted_key");
+    log::trace!("_pgp_get_decrypted_key");
 
     match key.secret() {
         key::SecretKeyMaterial::Unencrypted { .. } => Ok(key),
@@ -409,7 +409,7 @@ impl<'a> VerificationHelper for &mut Helper<'a> {
     fn check(&mut self, structure: MessageStructure)
         -> openpgp::Result<()>
     {
-        trace!("Helper::check");
+        log::trace!("Helper::check");
 
         for layer in structure.into_iter() {
             if let MessageLayer::SignatureGroup { results } = layer {
@@ -762,6 +762,7 @@ ffi!(fn pgp_decrypt_and_verify(session: *mut Session,
     let session = Session::as_mut(session)?;
     let mm = session.mm();
     let malloc = mm.malloc;
+    log::trace!("pgp_decrypt_and_verify entered");
 
     let ctext = unsafe { check_slice!(ctext, csize) };
 

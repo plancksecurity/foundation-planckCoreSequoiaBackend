@@ -27,7 +27,7 @@ macro_rules! ffi {
         // error code.
         #[no_mangle] pub extern "C"
         fn $f($($v: $t,)*) -> crate::ErrorCode {
-            trace!(stringify!($f));
+            log::trace!(stringify!($f));
 
             // The actual function.
             fn inner($($v: $t,)*) -> $rt { $body }
