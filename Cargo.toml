@@ -29,6 +29,7 @@ memoffset = "0.9"
 # spots where we can take advantage of new features.
 sequoia-openpgp = { version = "1.16", default-features = false, features = [ "compression" ] }
 thiserror = "1"
+log = {version = "0.4"}
 
 [dependencies.rusqlite]
 version = "0.29"
