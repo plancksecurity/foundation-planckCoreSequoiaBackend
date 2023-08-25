@@ -27,23 +27,23 @@ macro_rules! ffi {
         // error code.
         #[no_mangle] pub extern "C"
         fn $f($($v: $t,)*) -> crate::ErrorCode {
-            tracer!(*crate::TRACE, stringify!($f));
+            trace!(stringify!($f));
 
             // The actual function.
             fn inner($($v: $t,)*) -> $rt { $body }
 
-            t!("entered");
+            log::trace!("entered");
             // We use AssertUnwindSafe.  This is safe, because if we
             // catch a panic, we abort.  If we turn the panic into an
             // error, then we need to reexamine this assumption.
             let r = std::panic::catch_unwind(::std::panic::AssertUnwindSafe(|| {
                 match inner($($v,)*) {
                     Ok(_) => {
-                        t!("-> success");
+                        log::trace!("-> success");
                         ErrorCode::from(crate::Error::StatusOk)
                     }
                     Err(err) => {
-                        t!("-> error: {}{}",
+                        log::trace!("-> error: {}{}",
                            err,
                            {
                                use std::error::Error;
@@ -65,7 +65,7 @@ macro_rules! ffi {
             match r {
                 Ok(code) => code,
                 Err(_) => {
-                    t!("-> panic!");
+                    log::trace!("-> panic!");
                     unsafe { ::libc::abort() };
                 }
             }
@@ -79,8 +79,8 @@ macro_rules! stub {
     ($f:ident) => {
         #[no_mangle] pub extern "C"
         fn $f() -> crate::ErrorCode {
-            tracer!(*crate::TRACE, stringify!($f));
-            t!("{} is a stub\n", stringify!($f));
+            log::trace!(stringify!($f));
+            log::trace!("{} is a stub\n", stringify!($f));
             crate::Error::UnknownError(
                 anyhow::anyhow!("Function not implemented"),
                 stringify!($f).into()).into()

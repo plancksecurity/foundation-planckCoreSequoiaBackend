@@ -338,7 +338,7 @@ impl Keystore {
     // This causes the keydata to be associated with the supplied
     // certificate.
     fn cache_cert(cache: &mut CertCache, bytes: &[u8], cert: Cert) {
-        tracer!(*crate::TRACE, "Keystore::cache_cert");
+        log::trace!("Keystore::cache_cert");
 
         let mut hash = CACHE_HASH.context().expect("hash must be implemented");
         hash.update(bytes);
@@ -363,7 +363,7 @@ impl Keystore {
             .cloned()
             .collect::<Vec<Vec<u8>>>();
         if purge.len() > 0 {
-            t!("Purging {} stale entries that also map to {}",
+            log::trace!("Purging {} stale entries that also map to {}",
                purge.len(), fpr);
         }
         for stale_digest in purge {
@@ -380,7 +380,7 @@ impl Keystore {
     // certificate.  Otherwise, parses the keydata, adds the
     // certificate to the cache, and returns the certificate.
     fn parse_cert(cache: &mut CertCache, bytes: &[u8]) -> Result<Cert> {
-        tracer!(*crate::TRACE, "Keystore::parse_cert");
+        log::trace!("Keystore::parse_cert");
 
         let mut hash = CACHE_HASH.context().expect("hash must be implemented");
         hash.update(bytes);
@@ -393,7 +393,7 @@ impl Keystore {
         let cache_entries = cache.len();
 
         if let Some(cert) = cache.get(&digest) {
-            t!("Looking up {} in cache (w/{} of {} entries) -> hit!",
+            log::trace!("Looking up {} in cache (w/{} of {} entries) -> hilog::trace!",
                cert.fingerprint(),
                cache_entries, CERT_CACHE_ENTRIES);
 
@@ -404,7 +404,7 @@ impl Keystore {
                 GetKeyFailed,
                 format!("Parsing certificate"))?;
 
-            t!("Looking up {} in cache (w/{} of {} entries) -> miss!",
+            log::trace!("Looking up {} in cache (w/{} of {} entries) -> miss!",
                cert.fingerprint(),
                cache_entries, CERT_CACHE_ENTRIES);
 
@@ -417,7 +417,7 @@ impl Keystore {
                   cert_cache: &mut CertCache)
         -> Result<(Cert, bool)>
     {
-        tracer!(*crate::TRACE, "Keystore::cert_find_");
+        log::trace!("Keystore::cert_find_");
 
         let r = wrap_err!(
             if private_only {
@@ -431,7 +431,7 @@ impl Keystore {
             "executing query")?;
 
         if let Some((keydata, secret_key_material)) = r {
-            t!("Got {} bytes of certificate data", keydata.len());
+            log::trace!("Got {} bytes of certificate data", keydata.len());
             let cert = Self::parse_cert(cert_cache, &keydata)?;
             Ok((cert, secret_key_material))
         } else {
@@ -574,10 +574,10 @@ impl Keystore {
     pub fn cert_save(&mut self, mut cert: Cert)
         -> Result<(Option<PepIdentityTemplate>, bool)>
     {
-        tracer!(*crate::TRACE, "Keystore::cert_save");
+        log::trace!("Keystore::cert_save");
 
         let fpr = cert.fingerprint();
-        t!("Saving {}", fpr);
+        log::trace!("Saving {}", fpr);
 
         let tx = wrap_err!(
             self.conn.transaction(),
@@ -616,7 +616,7 @@ impl Keystore {
             // change.
             true
         };
-        t!("changed: {}", changed);
+        log::trace!("changed: {}", changed);
 
         if changed {
             if let Some(current) = current {
@@ -638,7 +638,7 @@ impl Keystore {
             cert.as_tsk().serialize(&mut keydata),
             UnknownDbError,
             "Serializing certificate")?;
-        t!("Serializing {} bytes ({:X})",
+        log::trace!("Serializing {} bytes ({:X})",
            keydata.len(),
            {
                use std::collections::hash_map::DefaultHasher;
@@ -666,7 +666,7 @@ impl Keystore {
             if changed {
                 let mut stmt = Self::cert_save_insert_subkeys_stmt(&tx)?;
                 for (i, ka) in vc.keys().enumerate() {
-                    t!("  {}key: {} ({} secret key material)",
+                    log::trace!("  {}key: {} ({} secret key material)",
                        if i == 0 { "primary " } else { "sub" },
                        ka.keyid(),
                        if ka.has_secret() { "has" } else { "no" });
@@ -690,7 +690,7 @@ impl Keystore {
                     } else {
                         continue;
                     };
-                    t!("  User ID: {}", uid);
+                    log::trace!("  User ID: {}", uid);
 
                     if changed {
                         wrap_err!(
@@ -717,7 +717,7 @@ impl Keystore {
         // the near future.
         Self::cache_cert(&mut self.cert_cache, &keydata, cert);
 
-        t!("saved");
+        log::trace!("saved");
 
         Ok((ident, changed))
     }
@@ -747,8 +747,8 @@ impl Keystore {
     pub fn list_keys(&mut self, pattern: &str, private_only: bool)
         -> Result<Vec<(Fingerprint, Option<UserID>, bool)>>
     {
-        tracer!(*crate::TRACE, "Keystore::list_keys");
-        t!("pattern: {}, private only: {}", pattern, private_only);
+        log::trace!("Keystore::list_keys");
+        log::trace!("pattern: {}, private only: {}", pattern, private_only);
 
         let mut certs: Vec<(Fingerprint, Option<UserID>, bool)> = Vec::new();
         let mut add_key = |cert: &Cert| {
@@ -769,7 +769,7 @@ impl Keystore {
                     certs.push((cert.fingerprint(), userid, revoked));
                 }
                 Err(err) => {
-                    t!("warning: certificate {}: \
+                    log::trace!("warning: certificate {}: \
                         rejected by policy: {}",
                        cert.fingerprint(), err);
                     certs.push((cert.fingerprint(), None, true));
@@ -794,7 +794,7 @@ impl Keystore {
                 match (pattern.find("."), pattern.find("@")) {
                     (Some(dotpos), Some(atpos)) if dotpos < atpos =>
                     {
-                        t!("Retrying list_keys with undotted pattern");
+                        log::trace!("Retrying list_keys with undotted pattern");
 
                         // Return a string which, if the input string
                         // is in the form of a user.name@address email
@@ -843,10 +843,10 @@ impl Keystore {
         } else {
             // Do not throw an error; return the empty set (i.e.,
             // pattern matches nothing).
-            t!("unsupported pattern '{}'", pattern);
+            log::trace!("unsupported pattern '{}'", pattern);
         }
 
-        t!("{} matches", certs.len());
+        log::trace!("{} matches", certs.len());
         Ok(certs)
     }
 }
