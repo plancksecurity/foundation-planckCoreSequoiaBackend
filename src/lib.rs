@@ -565,7 +565,9 @@ impl<'a> DecryptionHelper for &mut Helper<'a> {
                 have_wildcards = true;
                 continue;
             }
-
+            let testy = &keyid.to_hex();
+            log::trace!("Keystore::cert_find_ for {:?}", testy);
+    
             log::trace!("Considering PKESK for {}", keyid);
 
             // Collect the recipients.  Note: we must return the
@@ -738,9 +740,8 @@ impl<'a> DecryptionHelper for &mut Helper<'a> {
             } else if missing_passphrase {
                 Err(Error::PassphraseRequired.into())
             } else {
-                // Err(Error::DecryptNoKey(
-                //     anyhow::anyhow!("No key")).into())
-                Err(Error::CannotCreateKey(anyhow::anyhow!("No Key but fake"), "fake".to_owned()).into())
+                Err(Error::DecryptNoKey(
+                    anyhow::anyhow!("No key")).into())
             }
         }
     }
@@ -762,7 +763,6 @@ ffi!(fn pgp_decrypt_and_verify(session: *mut Session,
     let session = Session::as_mut(session)?;
     let mm = session.mm();
     let malloc = mm.malloc;
-    log::trace!("pgp_decrypt_and_verify entered");
 
     let ctext = unsafe { check_slice!(ctext, csize) };
 
@@ -792,8 +792,7 @@ ffi!(fn pgp_decrypt_and_verify(session: *mut Session,
         Err(err) => {
             match err.downcast::<Error>() {
                 Ok(err) => return Err(err),
-                //Err(err) => return Err(Error::DecryptNoKey(err)),
-                Err(err) => return Err(Error::VerifyNoKey(err)),
+                Err(err) => return Err(Error::DecryptNoKey(err)),
             }
         }
     };
@@ -805,8 +804,7 @@ ffi!(fn pgp_decrypt_and_verify(session: *mut Session,
 
     let h = decryptor.helper_mut();
     if ! h.decrypted {
-        //return Err(Error::DecryptNoKey(anyhow::anyhow!("decryption failed")));
-        return Err(Error::CannotDeleteKey(anyhow::anyhow!("decryption failed"), "Hee".to_owned()));
+        return Err(Error::DecryptNoKey(anyhow::anyhow!("decryption failed")));
     }
 
     // Add a terminating NUL for naive users.
@@ -1364,6 +1362,252 @@ ffi!(fn pgp_delete_keypair(session: *mut Session,
     keystore.cert_delete(fpr)
 });
 
+ffi!(fn pgp_import_keydata_strict(session: *mut Session,
+                                   keydata: *const c_char,
+                                   keydata_len: size_t,
+                                   identity_key: *mut PepIdentity,
+                                   identity_listp: *mut *mut PepIdentityListItem,
+                                   imported_keysp: *mut *mut StringListItem,
+                                   changed_key_indexp: *mut u64)
+    -> Result<()>
+{
+    let session = Session::as_mut(session)?;
+    let mm = session.mm();
+
+    if imported_keysp.is_null() && ! changed_key_indexp.is_null() {
+        return Err(Error::IllegalValue(
+            "When changed_key_index is provided, \
+             import_keys must also be provided."
+                .into()));
+    }
+
+    let keydata = unsafe { check_slice!(keydata, keydata_len) };
+
+    // We add(!) to the existing lists.
+    let mut identity_list = unsafe { identity_listp.as_mut() }
+        .map(|p| PepIdentityList::to_rust(mm, *p, false))
+        .unwrap_or_else(|| PepIdentityList::empty(mm));
+    let mut imported_keys = unsafe { imported_keysp.as_mut() }
+        .map(|p| StringList::to_rust(mm, *p, false))
+        .unwrap_or_else(|| StringList::empty(mm));
+    let mut changed_key_index: u64 = unsafe { changed_key_indexp.as_mut() }
+        .map(|p| *p)
+        .unwrap_or(0);
+    let identity_key = unsafe { identity_key.as_mut() }.unwrap();
+
+    // Get the start of each ascii armor block.
+    let mut offsets = Vec::new();
+    let searcher = TwoWaySearcher::new(b"-----BEGIN PGP");
+    loop {
+        let start = offsets.iter().last().map(|&i| i + 1).unwrap_or(0);
+        if let Some(i) = searcher.search_in(&keydata[start..]) {
+            offsets.push(start + i);
+        } else {
+            break;
+        }
+    }
+
+    log::trace!("armor block offsets: {:?}", offsets);
+
+    let retval = if offsets.len() == 0 {
+        return Err(Error::IllegalValue(
+            "No ASCII armor found"
+                .into()));
+    } else if offsets.len() == 1 {
+        import_keydata_strict(session,
+                       &keydata[offsets[0]..],
+                       identity_key,
+                       &mut identity_list,
+                       &mut imported_keys,
+                       &mut changed_key_index)
+    } else {
+        return Err(Error::IllegalValue(
+            "Too ASCII armored messages found."
+                .into()));
+
+    };
+
+    unsafe { identity_listp.as_mut() }.map(|p| {
+        *p = identity_list.to_c();
+    });
+    unsafe { imported_keysp.as_mut() }.map(|p| {
+        *p = imported_keys.to_c();
+    });
+    unsafe { changed_key_indexp.as_mut() }.map(|p| {
+        *p = changed_key_index;
+    });
+
+    retval
+
+});
+
+// Imports the keyring.  If keydata contains more than one
+// ascii-armored keyring, this only imports the first ascii-armored
+// keyring.
+fn import_keydata_strict(session: &mut Session,
+                  keydata: &[u8],
+                  identity_key: &PepIdentity,
+                  private_idents: &mut PepIdentityList,
+                  imported_keys: &mut StringList,
+                  changed_bitvec: &mut u64)
+    -> Result<()>
+{
+    log::trace!("import_keydata");
+
+    let keystore = session.keystore();
+
+    // We need to look at the first packet to figure out what we
+    // should do.
+    let ppr = match PacketParser::from_bytes(keydata) {
+        Ok(ppr) => ppr,
+        Err(err) =>
+            return Err(Error::UnknownError(
+                err, "Creating packet parser".into())),
+    };
+    let packet = match ppr.as_ref() {
+        Ok(pp) => &pp.packet,
+        Err(_eof) => {
+            return Err(Error::UnknownError(
+                anyhow::anyhow!("Unexpected EOF").into(),
+                "No data".into()));
+        }
+    };
+
+    match packet {
+        Packet::Signature(sig) => {
+            // Check that we have a certificate revocation
+            // certification.  If so, try to import it.
+            if sig.typ() != SignatureType::KeyRevocation {
+                log::trace!("Can't import a {} signature", sig.typ());
+                return Err(Error::NoKeyImported);
+            }
+
+            for issuer in sig.get_issuers().into_iter() {
+                match keystore.cert_find_with_key(issuer.clone(), false) {
+                    Err(err) => {
+                        log::trace!("Can't merge signature: \
+                            no certificate for {} available: {}",
+                           issuer, err);
+                    }
+                    Ok((cert, _)) => {
+                        let fpr = cert.fingerprint();
+                        if let Err(err)
+                            = sig.clone().verify_primary_key_revocation(
+                                &cert.primary_key(),
+                                &cert.primary_key())
+                        {
+                            log::trace!("Revocation certificate not issued by {}: {}",
+                               fpr, err);
+                            continue;
+                        }
+
+                        match cert.insert_packets(sig.clone()) {
+                            Err(err) => {
+                                log::trace!("Merging signature with {} failed: {}",
+                                   fpr, err);
+                                // This trumps any other error.
+                                return wrap_err!(
+                                    Err(err),
+                                    UnknownError,
+                                    "inserting packets");
+                            }
+                            Ok(cert) => {
+                                match keystore.cert_save(cert) {
+                                    Ok((_, changed)) => {
+                                        let count = imported_keys.len();
+                                        if changed && count < 64 {
+                                            *changed_bitvec |= 1 << count;
+                                        }
+                                        imported_keys.add(fpr.to_hex());
+                                        return Err(Error::KeyImported);
+                                    }
+                                    Err(err) => {
+                                        log::trace!("Saving updated certificate {} \
+                                            failed: {}",
+                                           fpr, err);
+                                        // This trumps any other error.
+                                        return Err(err);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            log::trace!("Failed to import revocation certificate allegedly issued by {:?}.",
+               sig
+                 .issuers().next()
+                 .map(|kh| kh.to_hex())
+                 .unwrap_or("<no issuer subpacket>".into()));
+
+            return Err(Error::NoKeyImported);
+        }
+        Packet::PublicKey(_) | Packet::SecretKey(_) => {
+            let mut got_one = false;
+            for certo in CertParser::from(ppr) {
+                match certo {
+                    Ok(cert) => {
+                        let fpr = cert.fingerprint();
+
+                        log::trace!("Importing certificate {}", fpr);
+                        let mut contained = false;
+                        for ua in cert.userids() {
+                            log::trace!("  User ID: {}", ua.userid());
+                            if let Ok(Some(key_id)) = ua.userid().email(){
+                                if let Some(user_id) = identity_key.address() {
+                                    if (key_id == String::from_utf8_lossy(user_id.to_bytes())){
+                                        contained=true;
+                                    }
+                                }
+                            }
+                        }
+                        //If we do not contain the ID given, cease.
+                        if (!contained){
+                            continue;
+                        }
+                        let is_tsk = cert.is_tsk();
+                        let (ident, changed)
+                            = session.keystore().cert_save(cert)?;
+                        imported_keys.add(fpr.to_hex());
+                        log::trace!("Adding {} to imported_keys", fpr);
+                        if let Some(ident) = ident {
+                            if is_tsk {
+                                log::trace!("Adding {:?} to private_idents", ident);
+                                private_idents.add(&ident);
+                            }
+                        }
+                        if changed {
+                            let i = imported_keys.len() - 1;
+                            if i < 64 {
+                                (*changed_bitvec) |= 1 << i;
+                            }
+                        }
+
+                        got_one = true;
+                    }
+                    e @ Err(_) => {
+                        wrap_err!(e,
+                                  UnknownError,
+                                  "Error reading keyring")?;
+                    }
+                }
+            }
+
+            if !got_one {
+                Err(Error::NoKeyImported)
+            } else {
+                Err(Error::KeyImported)
+            }
+        }
+        packet => {
+            log::trace!("Can't import a {} packet", packet.tag());
+            Err(Error::NoKeyImported)
+        }
+    }
+}
+
+
 // Imports the keyring.  If keydata contains more than one
 // ascii-armored keyring, this only imports the first ascii-armored
 // keyring.
@@ -1517,6 +1761,8 @@ fn import_keydata(session: &mut Session,
         }
     }
 }
+
+
 
 // Imports the keydata and returns a PepIdentity and whether
 // the certificate is changed relative to the copy on disk.
@@ -2374,6 +2620,40 @@ ZOeYHUIgxtJmOOp8ty/EfgEbx2QAAMDtAQC5fuVHyLfl1SqncTZaZkdaoSEqHdZA
 4RICLYzXmmut2gD/U5k61iRwqBWiepJ1IBNQKJvq4j0CWr0LaUk4FtGi6go=
 =qYY6
 -----END PGP PRIVATE KEY BLOCK-----
+-----BEGIN PGP PRIVATE KEY BLOCK-----
+Comment: 64E7 981D 4220 C6D2 6638  EA7C B72F C47E 011B C764
+Comment: <12alic231e@231example.org>
+
+xVgEZDcXhRYJKwYBBAHaRw8BAQdAu8SZs5zqYLLBaMpfbIuRg9CDuQNnkxGqCEiv
+MnD0czYAAQD2c2gL/jPZzZHbBQ2OHycdNOep79BLfs6ZBYiTodrukBDvwsALBB8W
+CgB9BYJkNxeFAwsJBwkQty/EfgEbx2RHFAAAAAAAHgAgc2FsdEBub3RhdGlvbnMu
+c2VxdW9pYS1wZ3Aub3Jn37FPCmBUoG7ZfDm0Q7haM6zbXc/00GediXbjruMVCU8D
+FQoIApsBAh4BFiEEZOeYHUIgxtJmOOp8ty/EfgEbx2QAAKL8AQD3bT5GYlfah/jx
+agUUPAU9awR17PJiF6qWZjhk0wX5GgEAyn0OjvpkCh8IUVXpgtmuN8NoBHXvLrPH
+FPpmBRhuEQfNEzxhbGljZUBleGFtcGxlLm9yZz7CwA4EExYKAIAFgmQ3F4UDCwkH
+CRC3L8R+ARvHZEcUAAAAAAAeACBzYWx0QG5vdGF0aW9ucy5zZXF1b2lhLXBncC5v
+cmfHWWYTVAdC9hBB3QvxZv+gKmr8p8yP48nf/4pMJHCbeQMVCggCmQECmwECHgEW
+IQRk55gdQiDG0mY46ny3L8R+ARvHZAAAkPcA/06QXtr0odpnQTQAzbgnDHCTisPv
+TeWhbP8Bu6dPSIjPAP9aZPn+s+Pdc52SEHBOQyM5dyWpbzvgLgwzNCetez6vDcdY
+BGQ3F4UWCSsGAQQB2kcPAQEHQFda1LIxdqccxiIgIbHXral59VRIPqrBnCSUckTe
+lZsSAAD/f7zaMPxIrEVkSkevdsdg5Om0Cgyz+SF8f9/763kPWF4SHMLAvwQYFgoB
+MQWCZDcXhQkQty/EfgEbx2RHFAAAAAAAHgAgc2FsdEBub3RhdGlvbnMuc2VxdW9p
+YS1wZ3Aub3Jn7pAplEnQhQvvgDihCw52kKa/JT50MTuZPkDY5bpsVhMCmwK+oAQZ
+FgoAbwWCZDcXhQkQ2W9Jvvf+shBHFAAAAAAAHgAgc2FsdEBub3RhdGlvbnMuc2Vx
+dW9pYS1wZ3Aub3JnOmJvUfEy2ymUu3MyS+J92P2nuaBYjpJ2L6hcuf8Bm+gWIQQV
+Suent38vsP649abZb0m+9/6yEAAApsYA/0Pdfn61X/u1GEVhCc0bKkBVYHwlXEJa
+nQ+9KBVaJFWnAQCh5bNyeV+8MU9odXZWxa8sg1VeDkFCTppWTsZTH9UHBRYhBGTn
+mB1CIMbSZjjqfLcvxH4BG8dkAABsNAEA9SQeJIPp9SMFJY2nCcclv0u/KxfZTBOJ
+1jfMU8LrJZAA/34fNxcn99iv23yIv1QnZtBogP5cfcxxhnaHlVPnaDAMx10EZDcX
+hRIKKwYBBAGXVQEFAQEHQLgFZFFGd+IWWAehV4i7b23SLLsxlaWsacPSkFswfl59
+AwEIBwAA/1Wj3K1G1S95h+0jhugeYnj1LZLWO4PiaiiSBCN3IxNoD8rCwAAEGBYK
+AHIFgmQ3F4UJELcvxH4BG8dkRxQAAAAAAB4AIHNhbHRAbm90YXRpb25zLnNlcXVv
+aWEtcGdwLm9yZxtd7Kn2Jmj5NYfdhBVEL2qLvRZAvnfp5oveXeradLAhApsMFiEE
+ZOeYHUIgxtJmOOp8ty/EfgEbx2QAAMDtAQC5fuVHyLfl1SqncTZaZkdaoSEqHdZA
+4RICLYzXmmut2gD/U5k61iRwqBWiepJ1IBNQKJvq4j0CWr0LaUk4FtGi6go=
+=qYY6
+-----END PGP PRIVATE KEY BLOCK-----
+
 ";
 
     // $ echo hi, pep | sq encrypt --recipient-file alice.pgp --signer-file alice.pgp > msg.pgp
@@ -2445,7 +2725,274 @@ k4tPxebef5BpUqRxdEhHQab24bTKrI1cWa9pJdpWQrssEPE7y7pNB83p/I+fKqYv
 =PALz
 -----END PGP MESSAGE-----
 ";
+    const EXPIRED_MSG: &'static str = "\
+    -----BEGIN PGP MESSAGE-----
 
+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
+l/Z6+iUK0OopAbQ=
+=DDIW
+-----END PGP MESSAGE-----
+";
     const MSG: &'static str = "hi, pep\n";
 
     #[test]
@@ -2487,4 +3034,47 @@ k4tPxebef5BpUqRxdEhHQab24bTKrI1cWa9pJdpWQrssEPE7y7pNB83p/I+fKqYv
 
         Ok(())
     }
+    #[test]
+    fn decrypt_expired_msg() -> Result<()> {
+        // This uses an in-memory keystore.
+        let session = Session::new();
+
+        let rc = pgp_import_keydata(
+            session,
+            ALICE_PGP.as_ptr() as *const c_char, ALICE_PGP.len(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut());
+        assert_eq!(rc, Error::KeyImported.into());
+
+        let mut plaintext: *mut c_char = std::ptr::null_mut();
+        let mut plaintext_len: size_t = 0;
+
+        let mut keylist: *mut StringListItem = std::ptr::null_mut();
+
+        let rc = pgp_decrypt_and_verify(
+            session,
+            EXPIRED_MSG.as_ptr() as *const c_char, EXPIRED_MSG.len(),
+            std::ptr::null(), 0, // dsigtext, dsigsize
+            &mut plaintext, &mut plaintext_len as *mut _,
+            &mut keylist as *mut *mut _,
+            std::ptr::null_mut(), // filename_ptr
+        );
+
+        // If this returns Error::MalformedMessage, it probably means
+        // that decompression is not enabled.
+        assert_eq!(rc, 0x0405);
+
+        // let ptext = unsafe { check_slice!(plaintext, plaintext_len) };
+        // let s = String::from_utf8_lossy(ptext);
+    
+        // println!("well: {} then", s);
+        //assert_eq!(ptext, MSG.as_bytes());
+
+        // Clean up.
+        unsafe { Box::from_raw(session) };
+
+        Ok(())
+    }
+
 }

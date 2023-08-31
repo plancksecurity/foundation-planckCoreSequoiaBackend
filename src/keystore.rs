@@ -138,7 +138,8 @@ impl Keystore {
     /// This is used for the unit tests.
     #[cfg(test)]
     pub(crate) fn init_in_memory() -> Result<Self> {
-        Self::init_(None)
+        Self::init_(Some(&PathBuf::from("/Users/saschabacardit/Downloads/pep3/".to_owned())))
+        //Self::init_(None)
     }
 
     fn init_(home: Option<&Path>) -> Result<Self> {
@@ -418,7 +419,8 @@ impl Keystore {
         -> Result<(Cert, bool)>
     {
         log::trace!("Keystore::cert_find_");
-
+        let testy = &fpr.to_hex();
+        log::trace!("Keystore::cert_find_ for {:?}", testy);
         let r = wrap_err!(
             if private_only {
                 Self::tsk_find_stmt(conn)?
@@ -472,6 +474,8 @@ impl Keystore {
             KeyHandle::KeyID(keyid) => keyid,
             KeyHandle::Fingerprint(fpr) => fingerprint_to_keyid(fpr),
         };
+        let testy = &keyid.to_hex();
+        log::trace!("Keystore::cert_find_ for {:?}", testy);
 
         let mut stmt = if private_only {
             Self::tsk_find_with_key_stmt(&self.conn)?
@@ -632,7 +636,7 @@ impl Keystore {
                 return Ok((None, changed));
             }
         }
-
+        
         let mut keydata = Vec::new();
         wrap_err!(
             cert.as_tsk().serialize(&mut keydata),
