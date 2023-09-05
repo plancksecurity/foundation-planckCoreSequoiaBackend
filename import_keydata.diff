@@ -1,0 +1,38 @@
+--- src/import_keydata.rs	2023-09-05 10:04:12
++++ src/import_keydata_strict.rs	2023-09-05 10:03:40
+@@ -1,8 +1,9 @@
+ // Imports the keyring.  If keydata contains more than one
+ // ascii-armored keyring, this only imports the first ascii-armored
+ // keyring.
+-fn import_keydata(session: &mut Session,
++fn import_keydata_strict(session: &mut Session,
+                   keydata: &[u8],
++                  identity_key: &PepIdentity,
+                   private_idents: &mut PepIdentityList,
+                   imported_keys: &mut StringList,
+                   changed_bitvec: &mut u64)
+\ No newline at end of file
+@@ -107,10 +108,21 @@
+                         let fpr = cert.fingerprint();
+ 
+                         log::trace!("Importing certificate {}", fpr);
++                        let mut contained = false;
+                         for ua in cert.userids() {
+                             log::trace!("  User ID: {}", ua.userid());
++                            if let Ok(Some(key_id)) = ua.userid().email(){
++                                if let Some(user_id) = identity_key.address() {
++                                    if (key_id == String::from_utf8_lossy(user_id.to_bytes())){
++                                        contained=true;
++                                    }
++                                }
++                            }
+                         }
+-
++                        //If we do not contain the ID given, cease.
++                        if (!contained){
++                            continue;
++                        }
+                         let is_tsk = cert.is_tsk();
+                         let (ident, changed)
+                             = session.keystore().cert_save(cert)?;
+\ No newline at end of file
