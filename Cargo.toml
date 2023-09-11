@@ -43,6 +43,7 @@ default = [
     "crypto-botan2",
 ]
 crypto-nettle = ["sequoia-openpgp/crypto-nettle"]
-crypto-botan = ["sequoia-openpgp/crypto-botan"]
+crypto-botan3 = ["sequoia-openpgp/crypto-botan3"]
 crypto-botan2 = ["sequoia-openpgp/crypto-botan2"]
+crypto-botan = ["sequoia-openpgp/crypto-botan2"]
 crypto-cng = ["sequoia-openpgp/crypto-cng"]
