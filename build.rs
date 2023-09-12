@@ -40,9 +40,9 @@ fn main() -> Result<(), std::io::Error> {
     // directory.
     let content = String::from_utf8(content).unwrap()
         .replace("REQUIRES",
-                 if cfg!(feature = "crypto-botan2") {
+                 if cfg!(feature = "crypto-botan2"){
                      "botan-2"
-                 } else if cfg!(feature = "crypto-botan3") {
+                 } else if cfg!(feature = "crypto-botan3") || cfg!(feature = "crypto-botan") {
                      "botan-3"
                  } else if cfg!(feature = "crypto-nettle") {
                      "nettle"
