@@ -88,6 +88,8 @@ use openpgp::types::{
     SymmetricAlgorithm,
 };
 
+#[macro_use] mod log;
+
 mod constants;
 #[macro_use] mod pep;
 use pep::{
@@ -173,7 +175,7 @@ fn _pgp_get_decrypted_key(key: Key<key::SecretParts, key::UnspecifiedRole>,
                           pass: Option<&Password>)
     -> Result<Key<key::SecretParts, key::UnspecifiedRole>>
 {
-    log::trace!("_pgp_get_decrypted_key");
+    trace!("_pgp_get_decrypted_key");
 
     match key.secret() {
         key::SecretKeyMaterial::Unencrypted { .. } => Ok(key),
@@ -185,7 +187,7 @@ fn _pgp_get_decrypted_key(key: Key<key::SecretParts, key::UnspecifiedRole>,
                     WrongPassphrase,
                     format!("Decrypting secret key material for {}", fpr))
             } else {
-                log::trace!("Can't decrypt {}: no password configured", fpr);
+                trace!("Can't decrypt {}: no password configured", fpr);
                 Err(Error::PassphraseRequired)
             }
         }
@@ -337,7 +339,7 @@ fn initialize_android_log() {
             android_logger::Config::default().with_max_level(::log::LevelFilter::Trace),
         );
     }
-    log::error!("sequoia backend session initialized");
+    error!("sequoia backend session initialized");
 }
 
 // void pgp_release(PEP_SESSION session, bool out_last)
@@ -419,7 +421,7 @@ impl<'a> VerificationHelper for &mut Helper<'a> {
     fn check(&mut self, structure: MessageStructure)
         -> openpgp::Result<()>
     {
-        log::trace!("Helper::check");
+        trace!("Helper::check");
 
         for layer in structure.into_iter() {
             if let MessageLayer::SignatureGroup { results } = layer {
@@ -434,7 +436,7 @@ impl<'a> VerificationHelper for &mut Helper<'a> {
                             self.signer_keylist.add_unique(
                                 primary_fpr.to_hex());
 
-                            log::trace!("Good signature ({:02X}{:02X}) from {}",
+                            trace!("Good signature ({:02X}{:02X}) from {}",
                                sig.digest_prefix()[0],
                                sig.digest_prefix()[1],
                                primary_fpr);
@@ -442,7 +444,7 @@ impl<'a> VerificationHelper for &mut Helper<'a> {
                             self.good_checksums += 1;
                         }
                         Err(VerificationError::MalformedSignature { sig, error }) => {
-                            log::trace!("Malformed signature ({:02X}{:02X}) \
+                            trace!("Malformed signature ({:02X}{:02X}) \
                                 allegedly from {:?}: {}",
                                sig.digest_prefix()[0],
                                sig.digest_prefix()[1],
@@ -451,7 +453,7 @@ impl<'a> VerificationHelper for &mut Helper<'a> {
                             self.malformed_signature += 1;
                         }
                         Err(VerificationError::MissingKey { sig }) => {
-                            log::trace!("No key to check signature ({:02X}{:02X}) \
+                            trace!("No key to check signature ({:02X}{:02X}) \
                                 allegedly from {:?}",
                                sig.digest_prefix()[0],
                                sig.digest_prefix()[1],
@@ -462,7 +464,7 @@ impl<'a> VerificationHelper for &mut Helper<'a> {
                             // This happens if the key doesn't have a binding
                             // signature.
 
-                            log::trace!("Certificate {} has no valid self-signature; \
+                            trace!("Certificate {} has no valid self-signature; \
                                 can't check signature ({:02X}{:02X}): {}",
                                cert.fingerprint(),
                                sig.digest_prefix()[0],
@@ -476,7 +478,7 @@ impl<'a> VerificationHelper for &mut Helper<'a> {
                             // alive or revoked, if the key is not
                             // alive or revoked, of if the key is not
                             // signing capable.
-                            log::trace!("Can't check signature ({:02X}{:02X}): \
+                            trace!("Can't check signature ({:02X}{:02X}): \
                                 key {} is bad: {}",
                                sig.digest_prefix()[0],
                                sig.digest_prefix()[1],
@@ -487,32 +489,32 @@ impl<'a> VerificationHelper for &mut Helper<'a> {
                             if let RevocationStatus::Revoked(_)
                                 = ka.revocation_status()
                             {
-                                log::trace!("reason: key is revoked");
+                                trace!("reason: key is revoked");
                                 self.revoked_key += 1;
                             } else if let RevocationStatus::Revoked(_)
                                 = ka.cert().revocation_status()
                             {
-                                log::trace!("reason: cert is revoked");
+                                trace!("reason: cert is revoked");
                                 self.revoked_key += 1;
                             }
                             // Check if the key or certificate is expired.
                             else if let Err(err) = ka.cert().alive() {
-                                log::trace!("reason: cert is expired: {}", err);
+                                trace!("reason: cert is expired: {}", err);
                                 self.expired_key += 1;
                             }
                             else if let Err(err) = ka.alive() {
                                 // Key is expired.
-                                log::trace!("reason: key is expired: {}", err);
+                                trace!("reason: key is expired: {}", err);
                                 self.expired_key += 1;
                             }
                             // Wrong key flags or something similar.
                             else {
-                                log::trace!("reason: other");
+                                trace!("reason: other");
                                 self.bad_key += 1;
                             }
                         }
                         Err(VerificationError::BadSignature { sig, ka, error }) => {
-                            log::trace!("Bad signature ({:02X}{:02X}) from {}: {}",
+                            trace!("Bad signature ({:02X}{:02X}) from {}: {}",
                                sig.digest_prefix()[0],
                                sig.digest_prefix()[1],
                                ka.cert().fingerprint(),
@@ -546,7 +548,7 @@ impl<'a> DecryptionHelper for &mut Helper<'a> {
         -> openpgp::Result<Option<openpgp::Fingerprint>>
         where D: FnMut(SymmetricAlgorithm, &SessionKey) -> bool
     {
-        log::trace!("Helper::decrypt");
+        trace!("Helper::decrypt");
 
         let password = self.session.curr_passphrase();
         let keystore = self.session.keystore();
@@ -566,7 +568,7 @@ impl<'a> DecryptionHelper for &mut Helper<'a> {
         }
         self.secret_keys_called = true;
 
-        log::trace!("{} PKESKs", pkesks.len());
+        trace!("{} PKESKs", pkesks.len());
 
         for pkesk in pkesks.iter() {
             let keyid = pkesk.recipient();
@@ -576,9 +578,9 @@ impl<'a> DecryptionHelper for &mut Helper<'a> {
                 continue;
             }
             let testy = &keyid.to_hex();
-            log::trace!("Keystore::cert_find_ for {:?}", testy);
+            trace!("Keystore::cert_find_ for {:?}", testy);
     
-            log::trace!("Considering PKESK for {}", keyid);
+            trace!("Considering PKESK for {}", keyid);
 
             // Collect the recipients.  Note: we must return the
             // primary key's fingerprint.
@@ -587,7 +589,7 @@ impl<'a> DecryptionHelper for &mut Helper<'a> {
             {
                 Err(Error::KeyNotFound(_)) => continue,
                 Err(err) => {
-                    log::trace!("Error looking up {}: {}", keyid, err);
+                    trace!("Error looking up {}: {}", keyid, err);
                     continue;
                 }
                 Ok((cert, private)) => (cert, private)
@@ -609,7 +611,7 @@ impl<'a> DecryptionHelper for &mut Helper<'a> {
             let ka = match cert.keys().filter(|ka| *keyid == ka.keyid()).next() {
                 Some(ka) => ka,
                 None => {
-                    log::trace!("Inconsistent DB: cert {} doesn't contain a subkey with \
+                    trace!("Inconsistent DB: cert {} doesn't contain a subkey with \
                         keyid {}, but DB says it does!",
                        cert.fingerprint(), keyid);
                     continue;
@@ -629,7 +631,7 @@ impl<'a> DecryptionHelper for &mut Helper<'a> {
                         continue;
                     }
                     Err(err) => {
-                        log::trace!("While decrypting {}: {}", fpr, err);
+                        trace!("While decrypting {}: {}", fpr, err);
                         continue;
                     }
                 };
@@ -637,7 +639,7 @@ impl<'a> DecryptionHelper for &mut Helper<'a> {
                 let mut keypair = match key.into_keypair() {
                     Ok(keypair) => keypair,
                     Err(err) => {
-                        log::trace!("Creating keypair for {}: {}", fpr, err);
+                        trace!("Creating keypair for {}: {}", fpr, err);
                         continue;
                     }
                 };
@@ -650,7 +652,7 @@ impl<'a> DecryptionHelper for &mut Helper<'a> {
                         }
                     }
                     None => {
-                        log::trace!("Failed to decrypt PKESK for {}", fpr);
+                        trace!("Failed to decrypt PKESK for {}", fpr);
                     }
                 }
             }
@@ -690,7 +692,7 @@ impl<'a> DecryptionHelper for &mut Helper<'a> {
                                 continue;
                             }
                             Err(err) => {
-                                log::trace!("decrypting {}: {}",
+                                trace!("decrypting {}: {}",
                                    ka.fingerprint(), err);
                                 continue;
                             }
@@ -699,7 +701,7 @@ impl<'a> DecryptionHelper for &mut Helper<'a> {
                         let mut keypair = match key.into_keypair() {
                             Ok(keypair) => keypair,
                             Err(err) => {
-                                log::trace!("Creating keypair for {}: {}",
+                                trace!("Creating keypair for {}: {}",
                                    ka.fingerprint(), err);
                                 continue;
                             }
@@ -714,7 +716,7 @@ impl<'a> DecryptionHelper for &mut Helper<'a> {
                         match pkesk.decrypt(&mut keypair, sym_algo) {
                             Some((sym_algo, sk)) => {
                                 // Add it to the recipient list.
-                                log::trace!("wildcard recipient appears to be {}",
+                                trace!("wildcard recipient appears to be {}",
                                    ka.fingerprint());
 
                                 if decrypt (sym_algo, &sk) {
@@ -725,14 +727,14 @@ impl<'a> DecryptionHelper for &mut Helper<'a> {
                                     self.decrypted = true;
                                     break;
                                 } else {
-                                    log::trace!("Failed to decrypt message \
+                                    trace!("Failed to decrypt message \
                                         using ESK decrypted by {}",
                                        ka.fingerprint());
                                     continue;
                                 }
                             }
                             None => {
-                                log::trace!("Failed to decrypt PKESK for {}",
+                                trace!("Failed to decrypt PKESK for {}",
                                    ka.fingerprint());
                                 continue;
                             }
@@ -921,7 +923,7 @@ ffi!(fn pgp_verify_text(session: *mut Session,
             }
         }
 
-        log::trace!("Text to verify: {} bytes with {} crlfs, {} bare crs and {} bare lfs",
+        trace!("Text to verify: {} bytes with {} crlfs, {} bare crs and {} bare lfs",
            size, crlf, cr, lf);
     }
 
@@ -1064,7 +1066,7 @@ fn pgp_encrypt_sign_optional(
     sign: bool)
     -> Result<()>
 {
-    log::trace!("pgp_encrypt_sign_optional");
+    trace!("pgp_encrypt_sign_optional");
 
     let session = Session::as_mut(session)?;
     let mm = session.mm();
@@ -1081,12 +1083,12 @@ fn pgp_encrypt_sign_optional(
 
 
     let keylist = StringList::to_rust(mm, keylist, false);
-    log::trace!("{} recipients.", keylist.len());
+    trace!("{} recipients.", keylist.len());
     for (i, v) in keylist.iter().enumerate() {
-        log::trace!("  {}. {}", i, String::from_utf8_lossy(v.to_bytes()));
+        trace!("  {}. {}", i, String::from_utf8_lossy(v.to_bytes()));
     }
     if sign {
-        log::trace!("First recipient will sign the message");
+        trace!("First recipient will sign the message");
     }
 
     // Get the keys for the recipients.
@@ -1119,7 +1121,7 @@ fn pgp_encrypt_sign_optional(
             have_one = true;
         }
         if ! have_one {
-            log::trace!("warning: {} doesn't have any valid encryption-capable subkeys",
+            trace!("warning: {} doesn't have any valid encryption-capable subkeys",
                vc.fingerprint());
         }
 
@@ -1223,7 +1225,7 @@ ffi!(fn _pgp_generate_keypair(session: *mut Session,
     let mm = session.mm();
 
     let identity = PepIdentity::as_mut(identity)?;
-    log::trace!("identity: {:?}", identity);
+    trace!("identity: {:?}", identity);
 
     let is_group_identity
         = identity.identity_flag(PepIdentityFlags::GroupIdent);
@@ -1241,7 +1243,7 @@ ffi!(fn _pgp_generate_keypair(session: *mut Session,
     } else {
         None
     };
-    log::trace!("password protected: {}",
+    trace!("password protected: {}",
        if password.is_some() { "yes" } else { "no" });
 
     let address = identity.address()
@@ -1255,7 +1257,7 @@ ffi!(fn _pgp_generate_keypair(session: *mut Session,
                 format!("identity->address must be UTF-8 encoded: {}",
                         err))
         })?;
-    log::trace!("identity.address: {}", address);
+    trace!("identity.address: {}", address);
 
     let username = identity.username();
     let username = if let Some(username) = username {
@@ -1274,7 +1276,7 @@ ffi!(fn _pgp_generate_keypair(session: *mut Session,
     } else {
         None
     };
-    log::trace!("identity.username: {:?}", username);
+    trace!("identity.username: {:?}", username);
 
     let userid = wrap_err!(
         UserID::from_unchecked_address(username, None, address)
@@ -1285,7 +1287,7 @@ ffi!(fn _pgp_generate_keypair(session: *mut Session,
                     let username = &username
                         .replace("(", "[")
                         .replace(")", "]")[..];
-                    log::trace!("Invalid username, trying '{}'", username);
+                    trace!("Invalid username, trying '{}'", username);
                     UserID::from_unchecked_address(
                         Some(username),
                         None,
@@ -1308,7 +1310,7 @@ ffi!(fn _pgp_generate_keypair(session: *mut Session,
                             }
                         })
                         .collect::<String>()[..];
-                    log::trace!("Invalid username, trying '{}'", username);
+                    trace!("Invalid username, trying '{}'", username);
                     UserID::from_unchecked_address(
                         Some(username),
                         None,
@@ -1367,7 +1369,7 @@ ffi!(fn pgp_delete_keypair(session: *mut Session,
     let keystore = session.keystore();
 
     let fpr = unsafe { check_fpr!(fpr) };
-    log::trace!("Deleting {}", fpr);
+    trace!("Deleting {}", fpr);
 
     keystore.cert_delete(fpr)
 });
@@ -1417,7 +1419,7 @@ ffi!(fn pgp_import_keydata_strict(session: *mut Session,
         }
     }
 
-    log::trace!("armor block offsets: {:?}", offsets);
+    trace!("armor block offsets: {:?}", offsets);
 
     let retval = if offsets.len() == 0 {
         return Err(Error::IllegalValue(
@@ -1462,7 +1464,7 @@ fn import_keydata_strict(session: &mut Session,
                   changed_bitvec: &mut u64)
     -> Result<()>
 {
-    log::trace!("import_keydata");
+    trace!("import_keydata");
 
     let keystore = session.keystore();
 
@@ -1488,14 +1490,14 @@ fn import_keydata_strict(session: &mut Session,
             // Check that we have a certificate revocation
             // certification.  If so, try to import it.
             if sig.typ() != SignatureType::KeyRevocation {
-                log::trace!("Can't import a {} signature", sig.typ());
+                trace!("Can't import a {} signature", sig.typ());
                 return Err(Error::NoKeyImported);
             }
 
             for issuer in sig.get_issuers().into_iter() {
                 match keystore.cert_find_with_key(issuer.clone(), false) {
                     Err(err) => {
-                        log::trace!("Can't merge signature: \
+                        trace!("Can't merge signature: \
                             no certificate for {} available: {}",
                            issuer, err);
                     }
@@ -1506,14 +1508,14 @@ fn import_keydata_strict(session: &mut Session,
                                 &cert.primary_key(),
                                 &cert.primary_key())
                         {
-                            log::trace!("Revocation certificate not issued by {}: {}",
+                            trace!("Revocation certificate not issued by {}: {}",
                                fpr, err);
                             continue;
                         }
 
                         match cert.insert_packets(sig.clone()) {
                             Err(err) => {
-                                log::trace!("Merging signature with {} failed: {}",
+                                trace!("Merging signature with {} failed: {}",
                                    fpr, err);
                                 // This trumps any other error.
                                 return wrap_err!(
@@ -1532,7 +1534,7 @@ fn import_keydata_strict(session: &mut Session,
                                         return Err(Error::KeyImported);
                                     }
                                     Err(err) => {
-                                        log::trace!("Saving updated certificate {} \
+                                        trace!("Saving updated certificate {} \
                                             failed: {}",
                                            fpr, err);
                                         // This trumps any other error.
@@ -1545,7 +1547,7 @@ fn import_keydata_strict(session: &mut Session,
                 }
             }
 
-            log::trace!("Failed to import revocation certificate allegedly issued by {:?}.",
+            trace!("Failed to import revocation certificate allegedly issued by {:?}.",
                sig
                  .issuers().next()
                  .map(|kh| kh.to_hex())
@@ -1560,10 +1562,10 @@ fn import_keydata_strict(session: &mut Session,
                     Ok(cert) => {
                         let fpr = cert.fingerprint();
 
-                        log::trace!("Importing certificate {}", fpr);
+                        trace!("Importing certificate {}", fpr);
                         let mut contained = false;
                         for ua in cert.userids() {
-                            log::trace!("  User ID: {}", ua.userid());
+                            trace!("  User ID: {}", ua.userid());
                             if let Ok(Some(key_id)) = ua.userid().email(){
                                 if let Some(user_id) = identity_key.address() {
                                     if (key_id == String::from_utf8_lossy(user_id.to_bytes())){
@@ -1580,10 +1582,10 @@ fn import_keydata_strict(session: &mut Session,
                         let (ident, changed)
                             = session.keystore().cert_save(cert)?;
                         imported_keys.add(fpr.to_hex());
-                        log::trace!("Adding {} to imported_keys", fpr);
+                        trace!("Adding {} to imported_keys", fpr);
                         if let Some(ident) = ident {
                             if is_tsk {
-                                log::trace!("Adding {:?} to private_idents", ident);
+                                trace!("Adding {:?} to private_idents", ident);
                                 private_idents.add(&ident);
                             }
                         }
@@ -1611,7 +1613,7 @@ fn import_keydata_strict(session: &mut Session,
             }
         }
         packet => {
-            log::trace!("Can't import a {} packet", packet.tag());
+            trace!("Can't import a {} packet", packet.tag());
             Err(Error::NoKeyImported)
         }
     }
@@ -1628,7 +1630,7 @@ fn import_keydata(session: &mut Session,
                   changed_bitvec: &mut u64)
     -> Result<()>
 {
-    log::trace!("import_keydata");
+    trace!("import_keydata");
 
     let keystore = session.keystore();
 
@@ -1654,14 +1656,14 @@ fn import_keydata(session: &mut Session,
             // Check that we have a certificate revocation
             // certification.  If so, try to import it.
             if sig.typ() != SignatureType::KeyRevocation {
-                log::trace!("Can't import a {} signature", sig.typ());
+                trace!("Can't import a {} signature", sig.typ());
                 return Err(Error::NoKeyImported);
             }
 
             for issuer in sig.get_issuers().into_iter() {
                 match keystore.cert_find_with_key(issuer.clone(), false) {
                     Err(err) => {
-                        log::trace!("Can't merge signature: \
+                        trace!("Can't merge signature: \
                             no certificate for {} available: {}",
                            issuer, err);
                     }
@@ -1672,14 +1674,14 @@ fn import_keydata(session: &mut Session,
                                 &cert.primary_key(),
                                 &cert.primary_key())
                         {
-                            log::trace!("Revocation certificate not issued by {}: {}",
+                            trace!("Revocation certificate not issued by {}: {}",
                                fpr, err);
                             continue;
                         }
 
                         match cert.insert_packets(sig.clone()) {
                             Err(err) => {
-                                log::trace!("Merging signature with {} failed: {}",
+                                trace!("Merging signature with {} failed: {}",
                                    fpr, err);
                                 // This trumps any other error.
                                 return wrap_err!(
@@ -1698,7 +1700,7 @@ fn import_keydata(session: &mut Session,
                                         return Err(Error::KeyImported);
                                     }
                                     Err(err) => {
-                                        log::trace!("Saving updated certificate {} \
+                                        trace!("Saving updated certificate {} \
                                             failed: {}",
                                            fpr, err);
                                         // This trumps any other error.
@@ -1711,7 +1713,7 @@ fn import_keydata(session: &mut Session,
                 }
             }
 
-            log::trace!("Failed to import revocation certificate allegedly issued by {:?}.",
+            trace!("Failed to import revocation certificate allegedly issued by {:?}.",
                sig
                  .issuers().next()
                  .map(|kh| kh.to_hex())
@@ -1726,19 +1728,19 @@ fn import_keydata(session: &mut Session,
                     Ok(cert) => {
                         let fpr = cert.fingerprint();
 
-                        log::trace!("Importing certificate {}", fpr);
+                        trace!("Importing certificate {}", fpr);
                         for ua in cert.userids() {
-                            log::trace!("  User ID: {}", ua.userid());
+                            trace!("  User ID: {}", ua.userid());
                         }
 
                         let is_tsk = cert.is_tsk();
                         let (ident, changed)
                             = session.keystore().cert_save(cert)?;
                         imported_keys.add(fpr.to_hex());
-                        log::trace!("Adding {} to imported_keys", fpr);
+                        trace!("Adding {} to imported_keys", fpr);
                         if let Some(ident) = ident {
                             if is_tsk {
-                                log::trace!("Adding {:?} to private_idents", ident);
+                                trace!("Adding {:?} to private_idents", ident);
                                 private_idents.add(&ident);
                             }
                         }
@@ -1766,7 +1768,7 @@ fn import_keydata(session: &mut Session,
             }
         }
         packet => {
-            log::trace!("Can't import a {} packet", packet.tag());
+            trace!("Can't import a {} packet", packet.tag());
             Err(Error::NoKeyImported)
         }
     }
@@ -1829,7 +1831,7 @@ ffi!(fn pgp_import_keydata(session: *mut Session,
         }
     }
 
-    log::trace!("armor block offsets: {:?}", offsets);
+    trace!("armor block offsets: {:?}", offsets);
 
     let retval = if offsets.len() == 0 {
         import_keydata(session,
@@ -1911,7 +1913,7 @@ ffi!(fn pgp_export_keydata(session: *mut Session,
     let mm = session.mm();
 
     let fpr = unsafe { check_fpr!(fpr) };
-    log::trace!("({}, {})", fpr, if secret { "secret" } else { "public" });
+    trace!("({}, {})", fpr, if secret { "secret" } else { "public" });
 
     let keydatap = unsafe { check_mut!(keydatap) };
     let keydata_lenp = unsafe { check_mut!(keydata_lenp) };
@@ -1959,7 +1961,7 @@ fn list_keys(session: *mut Session,
              keylistp: *mut *mut StringListItem,
              private_only: bool) -> Result<()>
 {
-    log::trace!("list_keys");
+    trace!("list_keys");
 
     let session = Session::as_mut(session)?;
     let mm = session.mm();
@@ -1988,7 +1990,7 @@ fn list_keys(session: *mut Session,
         }
     }
 
-    log::trace!("Found {} certificates matching '{}'", keylist.len(), pattern);
+    trace!("Found {} certificates matching '{}'", keylist.len(), pattern);
 
     *keylistp = keylist.to_c();
 
@@ -2215,7 +2217,7 @@ fn _pgp_key_broken(vc: &ValidCert) -> bool {
 
 fn _pgp_key_expired(vc: &ValidCert) -> bool
 {
-    log::trace!("_pgp_key_expired");
+    trace!("_pgp_key_expired");
 
     if ! vc.alive().is_ok() {
         return true;
@@ -2252,7 +2254,7 @@ fn _pgp_key_expired(vc: &ValidCert) -> bool
 
     let expired = !(can_encrypt && can_sign);
 
-    log::trace!("Key can{} encrypt, can{} sign => {} expired",
+    trace!("Key can{} encrypt, can{} sign => {} expired",
        if can_encrypt { "" } else { "not" },
        if can_sign { "" } else { "not" },
        if expired { "" } else { "not" });
@@ -2291,7 +2293,7 @@ ffi!(fn pgp_key_expired(session: *mut Session,
 
     *expiredp = expired;
 
-    log::trace!("{} is {}expired as of {:?}",
+    trace!("{} is {}expired as of {:?}",
        fpr,
        if expired { "" } else { "not " },
        when);
@@ -2366,7 +2368,7 @@ ffi!(fn pgp_key_revoked(session: *mut Session,
 
     *revokedp = revoked;
 
-    log::trace!("{} is {}revoked",
+    trace!("{} is {}revoked",
        fpr,
        if revoked { "" } else { "not " });
 
@@ -2467,7 +2469,7 @@ ffi!(fn pgp_get_key_rating(session: *mut Session, fpr: *const c_char,
     // expired because of how that is written, this was probably never
     // hiit here
 
-    log::trace!("worse enc: {:?}, worst sig: {:?}", worst_enc, worst_sign);
+    trace!("worse enc: {:?}, worst sig: {:?}", worst_enc, worst_sign);
 
     if worst_enc == PepCommType::NoEncryption
         || worst_sign == PepCommType::NoEncryption
@@ -2477,7 +2479,7 @@ ffi!(fn pgp_get_key_rating(session: *mut Session, fpr: *const c_char,
         comm_type(cmp::min(worst_enc, worst_sign));
     }
 
-    log::trace!("{}'s rating is {:?}", fpr, *comm_typep);
+    trace!("{}'s rating is {:?}", fpr, *comm_typep);
 
     Ok(())
 });
