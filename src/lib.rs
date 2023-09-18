@@ -1421,10 +1421,44 @@ ffi!(fn pgp_import_keydata_strict(session: *mut Session,
                        &mut imported_keys,
                        &mut changed_key_index)
     } else {
-        return Err(Error::IllegalValue(
-            "Too ASCII armored messages found."
-                .into()));
+        let mut retval = Error::KeyImported;
 
+        offsets.push(keydata.len());
+        for offsets in offsets.windows(2) {
+            let keydata = &keydata[offsets[0]..offsets[1]];
+
+            let curr_status = import_keydata_strict(session,
+                                             keydata,
+                                             identity_key,
+                                             &mut identity_list,
+                                             &mut imported_keys,
+                                             &mut changed_key_index);
+
+            // import_keydata should not return Ok; on success, it
+            // should return KeyImported.
+            let curr_status = match curr_status {
+                Err(err) => err,
+                Ok(()) => panic!("import_keydata returned Ok"),
+            };
+
+            if ErrorCode::from(&curr_status) != ErrorCode::from(&retval) {
+                match curr_status {
+                    Error::NoKeyImported
+                    | Error::KeyNotFound(_)
+                    | Error::UnknownError(_, _) => {
+                        match retval {
+                            Error::KeyImported => retval = Error::SomeKeysImported,
+                            Error::UnknownError(_, _) => retval = curr_status,
+                            _ => (),
+                        }
+                    }
+                    Error::KeyImported => retval = Error::SomeKeysImported,
+                    _ => (),
+                }
+            }
+        }
+
+        Err(retval)
     };
 
     unsafe { identity_listp.as_mut() }.map(|p| {
