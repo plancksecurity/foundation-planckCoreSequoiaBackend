@@ -326,9 +326,19 @@ API violation: per_user_directory not UTF-8 encoded ({:?}: {})",
 
     let ks = keystore::Keystore::init(Path::new(per_user_directory))?;
     session.init(MM { malloc, free }, ks);
-
+    #[cfg(target_os = "android")]
+    initialize_android_log();
     Ok(())
 });
+
+fn initialize_android_log() {
+    if cfg!(debug_assertions) {
+        android_logger::init_once(
+            android_logger::Config::default().with_max_level(::log::LevelFilter::Trace),
+        );
+    }
+    log::error!("sequoia backend session initialized");
+}
 
 // void pgp_release(PEP_SESSION session, bool out_last)
 ffi!(fn pgp_release(session: *mut Session, _out_last: bool) -> Result<()> {
