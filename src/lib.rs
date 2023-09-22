@@ -328,11 +328,13 @@ API violation: per_user_directory not UTF-8 encoded ({:?}: {})",
 
     let ks = keystore::Keystore::init(Path::new(per_user_directory))?;
     session.init(MM { malloc, free }, ks);
-    #[cfg(target_os = "android")]
-    initialize_android_log();
+    #[cfg(target_os = "android")] {
+        initialize_android_log();
+    }
     Ok(())
 });
 
+#[cfg(target_os = "android")]
 fn initialize_android_log() {
     if cfg!(debug_assertions) {
         android_logger::init_once(
