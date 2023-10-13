@@ -1220,7 +1220,8 @@ ffi!(fn pgp_encrypt_and_sign(session: *mut Session,
 // PEP_STATUS _pgp_generate_keypair(PEP_SESSION session, pEp_identity *identity, time_t when)
 ffi!(fn _pgp_generate_keypair(session: *mut Session,
                               identity: *mut PepIdentity,
-                              when: time_t)
+                              when: time_t,
+                              ignore_password: bool)
     -> Result<()>
 {
     let session = Session::as_mut(session)?;
@@ -1236,7 +1237,7 @@ ffi!(fn _pgp_generate_keypair(session: *mut Session,
     // GROUP ENCRYPTION.  VOLKER HAS A PLAN TO FIX THIS.
     let password = if is_group_identity {
         None
-    } else if session.new_key_pass_enabled() {
+    } else if session.new_key_pass_enabled() && !ignore_password {
         if let Some(password) = session.generation_passphrase() {
             Some(password)
         } else {
@@ -1356,10 +1357,11 @@ ffi!(fn _pgp_generate_keypair(session: *mut Session,
 // PEP_STATUS pgp_generate_keypair(PEP_SESSION session, pEp_identity *identity)
 #[no_mangle] pub extern "C"
 fn pgp_generate_keypair(session: *mut Session,
-                        identity: *mut PepIdentity)
+                        identity: *mut PepIdentity,
+                        ignore_password: bool)
     -> crate::ErrorCode
 {
-    _pgp_generate_keypair(session, identity, 0)
+    _pgp_generate_keypair(session, identity, 0, ignore_password)
 }
 
 // PEP_STATUS pgp_delete_keypair(PEP_SESSION session, const char *fpr_raw)
