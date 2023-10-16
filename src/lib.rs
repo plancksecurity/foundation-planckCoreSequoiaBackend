@@ -1426,6 +1426,7 @@ ffi!(fn pgp_import_keydata_strict(session: *mut Session,
                                    keydata: *const c_char,
                                    keydata_len: size_t,
                                    identity_key: *mut PepIdentity,
+                                   identity_listpub: *mut *mut PepIdentityListItem,
                                    identity_listp: *mut *mut PepIdentityListItem,
                                    imported_keysp: *mut *mut StringListItem,
                                    changed_key_indexp: *mut u64)
@@ -1444,6 +1445,9 @@ ffi!(fn pgp_import_keydata_strict(session: *mut Session,
     let keydata = unsafe { check_slice!(keydata, keydata_len) };
 
     // We add(!) to the existing lists.
+    let mut identity_list_pub = unsafe { identity_listpub.as_mut() }
+        .map(|p| PepIdentityList::to_rust(mm, *p, false))
+        .unwrap_or_else(|| PepIdentityList::empty(mm));
     let mut identity_list = unsafe { identity_listp.as_mut() }
         .map(|p| PepIdentityList::to_rust(mm, *p, false))
         .unwrap_or_else(|| PepIdentityList::empty(mm));
@@ -1478,6 +1482,7 @@ ffi!(fn pgp_import_keydata_strict(session: *mut Session,
                        &keydata[offsets[0]..],
                        identity_key,
                        &mut identity_list,
+                       &mut identity_list_pub,
                        &mut imported_keys,
                        &mut changed_key_index)
     } else {
@@ -1491,6 +1496,7 @@ ffi!(fn pgp_import_keydata_strict(session: *mut Session,
                                              keydata,
                                              identity_key,
                                              &mut identity_list,
+                                             &mut identity_list_pub,
                                              &mut imported_keys,
                                              &mut changed_key_index);
 
@@ -1524,6 +1530,9 @@ ffi!(fn pgp_import_keydata_strict(session: *mut Session,
     unsafe { identity_listp.as_mut() }.map(|p| {
         *p = identity_list.to_c();
     });
+    unsafe { identity_listpub.as_mut() }.map(|p| {
+        *p = identity_list_pub.to_c();
+    });
     unsafe { imported_keysp.as_mut() }.map(|p| {
         *p = imported_keys.to_c();
     });
@@ -1541,6 +1550,7 @@ ffi!(fn pgp_import_keydata_strict(session: *mut Session,
 fn import_keydata_strict(session: &mut Session,
                   keydata: &[u8],
                   identity_key: &PepIdentity,
+                  public_idents: &mut PepIdentityList,
                   private_idents: &mut PepIdentityList,
                   imported_keys: &mut StringList,
                   changed_bitvec: &mut u64)
@@ -1669,6 +1679,8 @@ fn import_keydata_strict(session: &mut Session,
                             if is_tsk {
                                 trace!("Adding {:?} to private_idents", ident);
                                 private_idents.add(&ident);
+                            } else {
+                                public_idents.add(&ident);
                             }
                         }
                         if changed {
