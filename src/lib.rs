@@ -3,10 +3,12 @@ use std::convert::TryInto;
 use std::env;
 use std::ffi::{
     CStr,
+    //CString
 };
 use std::io::{
     Read,
     Write,
+    Cursor,
 };
 use std::mem;
 use std::path::Path;
@@ -86,6 +88,12 @@ use openpgp::types::{
     RevocationStatus,
     SignatureType,
     SymmetricAlgorithm,
+};
+
+use openpgp::armor::{
+    Reader, 
+    //Kind,
+    ReaderMode,
 };
 
 #[macro_use] mod log;
@@ -760,6 +768,115 @@ impl<'a> DecryptionHelper for &mut Helper<'a> {
         }
     }
 }
+
+ffi!(fn pgp_get_fprs(session: *mut Session,
+                               ctext: *const c_char, _csize: size_t,                               
+                               keylistp: *mut *mut StringListItem)
+    -> Result<()>
+{
+    let session = Session::as_mut(session)?;
+    /*
+    let mm = session.mm();
+    let mut dearmored = Vec::new();
+
+    // Convert *const c_char to CStr
+    let cstr = unsafe { CStr::from_ptr(ctext) };
+
+    // Convert CStr to &str
+    let str_slice = cstr.to_str().map_err(|_| Error::IllegalValue("cannot convert to rust string".into()))?;
+    let rust_str = str_slice.to_owned(); //.unwrap();
+    
+    // Convert rust string to byteslice
+    let byte_slice = rust_str.as_bytes();
+
+    // create a reader from byteslice
+    let mut reader = Reader::from_reader(Cursor::new(byte_slice), ReaderMode::VeryTolerant);
+    
+    // dearmor
+    reader.read_to_end(&mut dearmored).map_err(|_| Error::IllegalValue("cannot read dearmored data".into()))?;
+
+    let cleaned_data: Vec<u8> = dearmored.into_iter().filter(|&byte| byte != 0).collect();
+    let ctext_cstring = CString::new(cleaned_data).map_err(|_| Error::IllegalValue("cannot read dearmored data".into()))?;//.unwrap();
+
+    //let ctext_cstring = CString::new(dearmored).map_err(|_| Error::IllegalValue("cannot read dearmored data".into()))?; //.unwrap();
+    
+    // Convert the C string to a Rust slice
+    let slice = unsafe { std::slice::from_raw_parts(ctext_cstring.as_ptr(), csize as usize) };
+    let u8_slice = unsafe {std::slice::from_raw_parts(slice.as_ptr() as *const u8, slice.len())};
+
+    // Presumably, you need to parse the slice to extract packets. 
+    // The actual logic would depend on how your packets are structured in the slice.
+    //let packet_pile = openpgp::PacketPile::from_bytes(u8_slice).map_err(|_| Error::IllegalValue("cannot create pgp packet pile".into()))?;
+    let packet_pile = openpgp::PacketPile::from_bytes(u8_slice)
+    .map_err(|e| {
+        eprintln!("Underlying error: {}", e); // Print the underlying error
+        Error::IllegalValue("cannot create pgp packet pile".into())
+    })?;
+    let packets = packet_pile.into_children();
+
+    // Create an empty StringList
+    let mut list = StringList::empty(mm);
+
+    for packet in packets { // Assuming packets is iterable.
+        if let openpgp::Packet::PublicKey(pk) = packet {
+            let fingerprint = pk.fingerprint().to_hex();
+            list.add(fingerprint);
+        }
+    }
+
+    // Update the provided pointer to point to the constructed list
+    unsafe { *keylistp = list.to_c() };
+    */
+
+    
+    let mm = session.mm();
+    //let mut dearmored = Vec::new();
+
+    // Convert *const c_char to CStr
+    let cstr = unsafe { CStr::from_ptr(ctext) };
+
+    // Convert CStr to &str
+    let str_slice = cstr.to_str().map_err(|_| Error::IllegalValue("cannot convert to rust string".into()))?;
+    let rust_str = str_slice.to_owned(); //.unwrap();
+    
+    // Convert rust string to byteslice
+    let byte_slice = rust_str.as_bytes();
+
+    // create a reader from byteslice
+    let reader = Reader::from_reader(Cursor::new(byte_slice), ReaderMode::VeryTolerant);
+
+    //let reader = Reader::new(data.as_bytes(), armor::Kind::PublicKey);
+    //let mut reader = Reader::from_reader(data.as_bytes(), Kind::PublicKey);
+    let parsed = openpgp::Cert::from_reader(reader);
+//    let _parser = openpgp::CertParser::from_reader(reader);
+
+    // Create an empty StringList
+    let mut list = StringList::empty(mm);
+
+    //while let Ok(cert) = parser.next() {
+    //    let fingerprint = cert.fingerprint().to_hex();
+    //    list.add(fingerprint);
+    //}
+    //unsafe { *keylistp = list.to_c() };
+    
+       
+    match parsed {
+        Ok(cert) => {
+            let fingerprint = cert.fingerprint().to_hex();
+            // *keylistp = Box::into_raw(StringListItem::new(&fingerprint));
+            list.add(fingerprint);
+            // If there were multiple fingerprints, loop through them and append.
+            // For our use case, there's only one fingerprint from the Cert.
+            unsafe { *keylistp = list.to_c() };
+        }
+        Err(_) => {
+           
+            // *keylistp = ptr::null_mut();
+        }
+    }
+
+    return Err(Error::StatusOk);
+});
 
 // PEP_STATUS pgp_decrypt_and_verify(
 //     PEP_SESSION session, const char *ctext, size_t csize,
