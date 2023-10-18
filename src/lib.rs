@@ -8,7 +8,6 @@ use std::ffi::{
 use std::io::{
     Read,
     Write,
-    Cursor,
 };
 use std::mem;
 use std::path::Path;
@@ -90,12 +89,6 @@ use openpgp::types::{
     RevocationStatus,
     SignatureType,
     SymmetricAlgorithm,
-};
-
-use openpgp::armor::{
-    Reader, 
-    //Kind,
-    ReaderMode,
 };
 
 #[macro_use] mod log;
