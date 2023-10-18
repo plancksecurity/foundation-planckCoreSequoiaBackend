@@ -1329,7 +1329,11 @@ ffi!(fn _pgp_generate_keypair(session: *mut Session,
         Some(session.cipher_suite().try_into().unwrap_or_default()),
         Some(userid));
 
-    certb = certb.set_password(password);
+    if ( identity.flags == PepIdentityFlags::SignIdent ) {
+        certb = certb.set_password(password).set_validity_period(None);
+    } else {
+        certb = certb.set_password(password);
+    }
 
     if when > 0 {
         certb = certb.set_creation_time(

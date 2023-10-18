@@ -346,6 +346,8 @@ pub enum PepIdentityFlags {
     // identity is a group identity (e.g. mailing list) - N.B. not
     // related to device group!
     GroupIdent = 0x0400,
+    // identity is for internal signing purposes only
+    SignIdent = 0x1000,
 }
 
 
