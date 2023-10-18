@@ -765,7 +765,7 @@ impl<'a> DecryptionHelper for &mut Helper<'a> {
 }
 
 ffi!(fn pgp_get_fprs(session: *mut Session,
-                               ctext: *const c_char, _csize: size_t,                               
+                               ctext: *const c_char, csize: size_t,
                                keylistp: *mut *mut StringListItem)
     -> Result<()>
 {
@@ -773,9 +773,7 @@ ffi!(fn pgp_get_fprs(session: *mut Session,
     
     let mm = session.mm();
 
-    // Convert *const c_char to CStr
-    let slice = unsafe { CStr::from_ptr(ctext) };
-    let message: &[u8] = slice.to_bytes();
+    let message: &[u8] = unsafe { check_slice!(ctext, csize) };
 
     // Create an empty StringList
     let mut list = StringList::empty(mm);
