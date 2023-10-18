@@ -776,8 +776,6 @@ ffi!(fn pgp_get_fprs(session: *mut Session,
     // Convert *const c_char to CStr
     let slice = unsafe { CStr::from_ptr(ctext) };
     let message: &[u8] = slice.to_bytes();
-    //let message = cstr.to_str();
-    //let message: &[u8] = unsafe { std::slice::from_raw_parts_mut(ctext, _csize) };
 
     // Create an empty StringList
     let mut list = StringList::empty(mm);
