@@ -3,3 +3,5 @@
 /local.conf
 pEpEngineSequoiaBackendProject.vcxproj.user
 x64
+
+_build/
