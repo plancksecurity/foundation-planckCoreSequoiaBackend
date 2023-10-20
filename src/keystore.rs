@@ -714,7 +714,7 @@ impl Keystore {
 
         // Cache the updated certificate.  It will likely be used in
         // the near future.
-        if(cache){
+        if cache {
             Self::cache_cert(&mut self.cert_cache, &keydata, cert);
         }
 
