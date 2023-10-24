@@ -566,8 +566,7 @@ impl Keystore {
     /// If the certificate is already present, it is merged with the
     /// saved copy.
     ///
-    /// If the certificate includes private key material, returns a
-    /// PepIdentity.  This also returns whether the certificate is
+    /// Also, returns a PepIdentity.  This also returns whether the certificate is
     /// changed relative to the copy on disk.  (If there was no copy,
     /// then this returns true.)
     ///
@@ -575,6 +574,8 @@ impl Keystore {
     /// indicate that the certificate has changed when it hasn't
     /// (false positive), but it will never say that the certificate
     /// has not changed when it has (false negative).
+    /// Changelog: 18/10/2023 Tabare Sascha Bacardit: Now cert_save always,
+    /// return an identity, this allows for finer control over the inserted data.
     pub fn cert_save(&mut self, mut cert: Cert)
         -> Result<(Option<PepIdentityTemplate>, bool)>
     {
@@ -629,12 +630,6 @@ impl Keystore {
                     UnknownDbError,
                     "Merging certificate with existing certificate")?;
             }
-        } else {
-            // If we have private key material, then we need to return
-            // a pep identity.  Otherwise, we can shortcircuit.
-            if ! cert.is_tsk() {
-                return Ok((None, changed));
-            }
         }
         
         let mut keydata = Vec::new();
@@ -664,7 +659,7 @@ impl Keystore {
         }
 
         let mut ident = None;
-
+        let mut cache = false; 
         if let Ok(vc) = cert.with_policy(crate::P, None) {
             // Update the subkey table.
             if changed {
@@ -702,8 +697,8 @@ impl Keystore {
                             UnknownDbError,
                             "Executing cert save insert userids")?;
                     }
-
-                    if ident.is_none() && vc.is_tsk() {
+                    cache = vc.is_tsk();
+                    if ident.is_none() {
                         ident = Some(PepIdentityTemplate::new(
                             &uid, fpr.clone(), ua.name().unwrap_or(None)));
                     }
@@ -719,7 +714,9 @@ impl Keystore {
 
         // Cache the updated certificate.  It will likely be used in
         // the near future.
-        Self::cache_cert(&mut self.cert_cache, &keydata, cert);
+        if cache {
+            Self::cache_cert(&mut self.cert_cache, &keydata, cert);
+        }
 
         trace!("saved");
 
