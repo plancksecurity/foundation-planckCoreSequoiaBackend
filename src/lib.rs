@@ -2831,6 +2831,7 @@ l/Z6+iUK0OopAbQ=
             ALICE_PGP.as_ptr() as *const c_char, ALICE_PGP.len(),
             std::ptr::null_mut(),
             std::ptr::null_mut(),
+            std::ptr::null_mut(),
             std::ptr::null_mut());
         assert_eq!(rc, Error::KeyImported.into());
 
@@ -2868,6 +2869,7 @@ l/Z6+iUK0OopAbQ=
         let rc = pgp_import_keydata(
             session,
             ALICE_PGP.as_ptr() as *const c_char, ALICE_PGP.len(),
+            std::ptr::null_mut(),
             std::ptr::null_mut(),
             std::ptr::null_mut(),
             std::ptr::null_mut());
