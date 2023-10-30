@@ -764,7 +764,7 @@ impl<'a> DecryptionHelper for &mut Helper<'a> {
     }
 }
 
-ffi!(fn pgp_get_fprs(session: *mut Session,
+ffi!(fn pgp_get_key_ids(session: *mut Session,
                                ctext: *const c_char, csize: size_t,
                                keylistp: *mut *mut StringListItem)
     -> Result<()>
