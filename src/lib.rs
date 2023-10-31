@@ -778,7 +778,6 @@ ffi!(fn pgp_get_key_ids(session: *mut Session,
     let mut list = StringList::empty(mm);
 
     let mut pkesks: Vec<PKESK> = Vec::new();  // Accumulator for PKESKs.
-    let mut packets: Vec<Packet> = Vec::new(); // Accumulator for packets.
 
     let mut ppr = PacketParserBuilder::from_bytes(message)
         .expect("NOT EOF").build().unwrap();
@@ -788,7 +787,7 @@ ffi!(fn pgp_get_key_ids(session: *mut Session,
         ppr = ppr_;
         match packet {
             Packet::PKESK(p) => pkesks.push(p),
-            _ => packets.push(packet),
+            _ =>  (),
         }
     }
 
