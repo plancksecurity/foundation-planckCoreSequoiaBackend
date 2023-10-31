@@ -829,12 +829,8 @@ impl Keystore {
                     }
                 })
         {
-            // Only hex characters and spaces and a fair amount of
-            // them.  This is probably a fingerprint.  Note: the pep
-            // engine never looks keys up by keyid, so we don't handle
-            // them.
-            let fpr = KeyID::from_hex(pattern).expect("valid key ID");
-            let (cert, _private) = self.cert_find_with_key(fpr, private_only)?;
+            let keyid  = KeyID::from_hex(pattern).expect("valid key ID");
+            let (cert, _private) = self.cert_find_with_key(keyid, private_only)?;
             add_key(&cert);
         } else if pattern.len() > 16
             && pattern.chars()
