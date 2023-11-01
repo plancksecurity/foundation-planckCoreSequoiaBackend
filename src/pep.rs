@@ -398,7 +398,7 @@ impl TryFrom<PepCipherSuite> for openpgp::cert::CipherSuite {
     fn try_from(cs: PepCipherSuite) -> Result<openpgp::cert::CipherSuite> {
         use openpgp::cert::CipherSuite::*;
         match cs {
-            PepCipherSuite::Default => Ok(RSA2k),
+            PepCipherSuite::Default => Ok(RSA4k),
             PepCipherSuite::Cv25519 => Ok(Cv25519),
             PepCipherSuite::P256 => Ok(P256),
             PepCipherSuite::P384 => Ok(P384),
