@@ -58,6 +58,8 @@ use openpgp::packet::{
 use openpgp::parse::{
     Parse,
     PacketParser,
+	PacketParserResult,
+	PacketParserBuilder,
     stream::{
         DecryptionHelper,
         DecryptorBuilder,
@@ -760,6 +762,48 @@ impl<'a> DecryptionHelper for &mut Helper<'a> {
         }
     }
 }
+
+ffi!(fn pgp_get_key_ids(session: *mut Session,
+                               ctext: *const c_char, csize: size_t,
+                               keylistp: *mut *mut StringListItem)
+    -> Result<()>
+{
+    let session = Session::as_mut(session)?;
+    
+    let mm = session.mm();
+
+    let message: &[u8] = unsafe { check_slice!(ctext, csize) };
+
+    // Create an empty StringList
+    let mut list = StringList::empty(mm);
+
+    let mut pkesks: Vec<PKESK> = Vec::new();  // Accumulator for PKESKs.
+
+    let mut ppr = PacketParserBuilder::from_bytes(message)
+        .expect("NOT EOF").build().unwrap();
+
+    while let PacketParserResult::Some(pp) = ppr {
+        let (packet, ppr_) = pp.recurse().expect("Parsing message");
+        ppr = ppr_;
+        match packet {
+            Packet::PKESK(p) => pkesks.push(p),
+            _ =>  (),
+        }
+    }
+
+    if let PacketParserResult::EOF(eof) = ppr {
+        let is_message = eof.is_message();
+        if is_message.is_ok() {
+            for pkesk in pkesks.iter() {
+                list.add(pkesk.recipient().to_hex());
+            }
+        }
+    }
+
+    unsafe { *keylistp = list.to_c() };
+
+    return Err(Error::StatusOk);
+});
 
 // PEP_STATUS pgp_decrypt_and_verify(
 //     PEP_SESSION session, const char *ctext, size_t csize,

@@ -814,7 +814,25 @@ impl Keystore {
                     _ => (),
                 }
             }
-        } else if pattern.len() >= 16
+        } else if pattern.len() == 16
+            && pattern.chars()
+                .all(|c| {
+                    match c {
+                          '0' | '1' | '2' | '3' | '4'
+                        | '5' | '6' | '7' | '8' | '9'
+                        | 'a' | 'b' | 'c' | 'd' | 'e' | 'f'
+                        | 'A' | 'B' | 'C' | 'D' | 'E' | 'F'
+                        | ' ' => {
+                            true
+                        }
+                        _ => false,
+                    }
+                })
+        {
+            let keyid  = KeyID::from_hex(pattern).expect("valid key ID");
+            let (cert, _private) = self.cert_find_with_key(keyid, private_only)?;
+            add_key(&cert);
+        } else if pattern.len() > 16
             && pattern.chars()
                 .all(|c| {
                     match c {
