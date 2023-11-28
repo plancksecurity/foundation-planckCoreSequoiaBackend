@@ -25,7 +25,6 @@ use libc::{
     c_char,
     c_uint,
     size_t,
-    time_t,
 };
 
 use chrono::LocalResult;
@@ -583,7 +582,7 @@ impl<'a> DecryptionHelper for &mut Helper<'a> {
             }
             let testy = &keyid.to_hex();
             trace!("Keystore::cert_find_ for {:?}", testy);
-    
+
             trace!("Considering PKESK for {}", keyid);
 
             // Collect the recipients.  Note: we must return the
@@ -769,7 +768,7 @@ ffi!(fn pgp_get_key_ids(session: *mut Session,
     -> Result<()>
 {
     let session = Session::as_mut(session)?;
-    
+
     let mm = session.mm();
 
     let message: &[u8] = unsafe { check_slice!(ctext, csize) };
@@ -1261,10 +1260,10 @@ ffi!(fn pgp_encrypt_and_sign(session: *mut Session,
         session, keylist, ptext, psize, ctextp, csizep, true)
 });
 
-// PEP_STATUS _pgp_generate_keypair(PEP_SESSION session, pEp_identity *identity, time_t when)
+// PEP_STATUS _pgp_generate_keypair(PEP_SESSION session, pEp_identity *identity, i64 when)
 ffi!(fn _pgp_generate_keypair(session: *mut Session,
                               identity: *mut PepIdentity,
-                              when: time_t)
+                              when: i64)
     -> Result<()>
 {
     let session = Session::as_mut(session)?;
@@ -2079,10 +2078,10 @@ fn _pgp_key_expired(vc: &ValidCert) -> bool
 }
 
 // PEP_STATUS pgp_key_expired(PEP_SESSION session, const char *fpr,
-//                            const time_t when, bool *expired)
+//                            const i64 when, bool *expired)
 ffi!(fn pgp_key_expired(session: *mut Session,
                         fpr: *const c_char,
-                        when: time_t,
+                        when: i64,
                         expiredp: *mut bool)
     -> Result<()>
 {
@@ -2300,10 +2299,10 @@ ffi!(fn pgp_get_key_rating(session: *mut Session, fpr: *const c_char,
     Ok(())
 });
 
-// PEP_STATUS pgp_key_created(PEP_SESSION session, const char *fpr, time_t *created)
+// PEP_STATUS pgp_key_created(PEP_SESSION session, const char *fpr, i64 *created)
 ffi!(fn pgp_key_created(session: *mut Session,
                         fpr: *const c_char,
-                        createdp: *mut time_t)
+                        createdp: *mut i64)
     -> Result<()>
 {
     let session = Session::as_mut(session)?;
@@ -2318,7 +2317,7 @@ ffi!(fn pgp_key_created(session: *mut Session,
         UnknownError,
         "Creation time out of range")?.as_secs();
 
-    *createdp = t as time_t;
+    *createdp = t as i64;
 
     Ok(())
 });
@@ -2497,16 +2496,16 @@ ZOeYHUIgxtJmOOp8ty/EfgEbx2QAAMDtAQC5fuVHyLfl1SqncTZaZkdaoSEqHdZA
     //     Version: 3
     //     Recipient: 003F542BE1540CD4
     //     Pk algo: ECDH
-    //   
+    //
     // Sym. Encrypted and Integrity Protected Data Packet, new CTB, 300 bytes
     // │   Version: 1
     // │   Session key: 09B40F05C8F12C7FF6F409698E2358C221654CDC7E300872686FEF1E16EF2385
     // │   Symmetric algo: AES-256
     // │   Decryption successful
-    // │ 
+    // │
     // ├── Compressed Data Packet, new CTB, 256 bytes
     // │   │   Algorithm: ZIP
-    // │   │ 
+    // │   │
     // │   ├── One-Pass Signature Packet, new CTB, 13 bytes
     // │   │       Version: 3
     // │   │       Type: Binary
@@ -2514,11 +2513,11 @@ ZOeYHUIgxtJmOOp8ty/EfgEbx2QAAMDtAQC5fuVHyLfl1SqncTZaZkdaoSEqHdZA
     // │   │       Hash algo: SHA512
     // │   │       Issuer: D96F49BEF7FEB210
     // │   │       Last: true
-    // │   │     
+    // │   │
     // │   ├── Literal Data Packet, new CTB, 14 bytes
     // │   │       Format: Binary data
     // │   │       Content: "hi, pep\n"
-    // │   │     
+    // │   │
     // │   └── Signature Packet, new CTB, 212 bytes
     // │           Version: 4
     // │           Type: Binary
@@ -2534,7 +2533,7 @@ ZOeYHUIgxtJmOOp8ty/EfgEbx2QAAMDtAQC5fuVHyLfl1SqncTZaZkdaoSEqHdZA
     // │             Intended Recipient: 64E7981D4220C6D26638EA7CB72FC47E011BC764
     // │           Digest prefix: 843B
     // │           Level: 0 (signature over data)
-    // │         
+    // │
     // └── Modification Detection Code Packet, new CTB, 20 bytes
     //         Digest: 430056320490BE00DD9695E9DA5964207E54844B
     //         Computed digest: 430056320490BE00DD9695E9DA5964207E54844B
@@ -2897,7 +2896,7 @@ l/Z6+iUK0OopAbQ=
 
         // let ptext = unsafe { check_slice!(plaintext, plaintext_len) };
         // let s = String::from_utf8_lossy(ptext);
-    
+
         // println!("well: {} then", s);
         //assert_eq!(ptext, MSG.as_bytes());
 
