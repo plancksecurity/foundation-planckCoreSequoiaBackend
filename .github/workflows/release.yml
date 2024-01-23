@@ -6,16 +6,15 @@ jobs:
   ubuntu-release:
     runs-on: ubuntu-latest
     env:
-      YML2_PATH: /home/runner/venv/bin
       PREFIX: /home/runner/install
     steps:
       - name: Get botan 
         uses: actions/download-artifact@v4
         with:
-          name: ubuntu-47c2af2153d440734e2f3fae796a8b2c4b5db0ad
+          name: ubuntu-d39f573718993ceab57564e46dfacd4ad3017794
           github-token: ${{ github.token }}
           repository: plancksecurity/botan
-          run-id: 7615071360
+          run-id: 7625124553
           path: /home/runner/install
       - uses: actions/checkout@v4
       - run: sudo apt install cargo 
