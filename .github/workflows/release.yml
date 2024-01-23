@@ -31,14 +31,11 @@ jobs:
     steps:
       - name: Get sources
         uses: actions/checkout@v4
-      - name: Echo home
-        run: 
-          echo $HOME
       - name: Windows Cargo Cache
         id: windows-cache-cargo
         uses: actions/cache@v4
         with:
-          path: C:\\Users\\runneradmin\\.cargo
+          path: C:\Users\runneradmin\.cargo
           key: ${{ runner.os }}-cargo-cache
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v1.1
@@ -58,10 +55,6 @@ jobs:
           toolchain: stable
       - name: Build project
         run: msbuild /property:Configuration=Release /property:Platform=x64 build-win64
-#      - uses: actions-rs/cargo@v1
-#        with:
-#          command: build
-#          args: --features crypto-botan2 --no-default-features --release
       - name: archive artifacts on sha
         uses: actions/upload-artifact@v4
         with:
