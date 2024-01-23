@@ -51,7 +51,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: build 
-          args: --features crypto-botan2 --no-default-features --frozen --release
+          args: --features crypto-botan2 --no-default-features --release
       - name: archive artifacts on sha
         uses: actions/upload-artifact@v4
         with:
