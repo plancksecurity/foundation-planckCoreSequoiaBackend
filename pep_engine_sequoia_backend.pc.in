@@ -7,4 +7,4 @@ URL: https://sequoia-pgp.org/
 Version: VERSION
 Requires: REQUIRES
 Cflags:
-Libs: -L${libdir} -lpep_engine_sequoia_backend
+Libs: -L${libdir} -lpep_engine_sequoia_backend -luser32
