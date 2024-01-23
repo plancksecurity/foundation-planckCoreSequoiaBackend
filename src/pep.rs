@@ -21,8 +21,6 @@ mod stringlist;
 pub use stringlist::{
     StringListItem,
     StringList,
-    StringListIterMut,
-    StringListIter,
 };
 
 // Transforms an error from some error type to the pep::Error.
