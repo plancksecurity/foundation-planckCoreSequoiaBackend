@@ -7,7 +7,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PREFIX: /home/runner/install
-      GH_TOKEN: ${{ github.token }}
     steps:
       - name: Install botan 
         run: sudo apt install -y libbotan-2-dev
@@ -29,6 +28,8 @@ jobs:
 
   windows-release:
     runs-on: windows-latest
+    env:
+      PREFIX: install
     steps:
       - uses: actions/checkout@v4
       - uses: ilammy/msvc-dev-cmd@v1
@@ -45,18 +46,16 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - run: make
-      - run: make install
+      - run: cargo build --features crypto-botan --no-default-features --release
       - name: archive artifacts on sha
         uses: actions/upload-artifact@v4
         with:
           name: windows-${{ github.sha }}
-          path: /home/runner/install
+          path: target\release
       - name: archive artifacts on tag
         if: github.ref_type == 'tag'
         uses: actions/upload-artifact@v4
         with:
           name: windows-${{ github.ref }}
-          path: install
-
+          path: target\release
 
