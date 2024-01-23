@@ -42,7 +42,7 @@ jobs:
           run-id: 7625124553
           path: . 
       - name: Relocate lib
-        run: cp lib\botan.lib botan-2.lib
+        run: cp lib\botan.lib botan.lib
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
