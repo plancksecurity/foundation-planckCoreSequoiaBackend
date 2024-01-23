@@ -9,7 +9,7 @@ jobs:
       PREFIX: /home/runner/install
       GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Get botan 
+      - name: Install botan 
         run: sudo apt install -y libbotan-2-dev
       - uses: actions/checkout@v4
       - run: sudo apt install cargo 
@@ -25,6 +25,38 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ubuntu-${{ github.ref }}
+          path: install
+
+  windows-release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64
+      - name: Get botan 
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-d39f573718993ceab57564e46dfacd4ad3017794
+          github-token: ${{ secrets.ALL_REPO_ACCESS_TOKEN }}
+          repository: plancksecurity/botan
+          run-id: 7625124553
+          path: /home/runner/install
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - run: nmake
+      - run: nmake install
+      - name: archive artifacts on sha
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-${{ github.sha }}
+          path: /home/runner/install
+      - name: archive artifacts on tag
+        if: github.ref_type == 'tag'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-${{ github.ref }}
           path: install
 
 
