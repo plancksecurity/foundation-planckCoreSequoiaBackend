@@ -42,7 +42,7 @@ jobs:
           github-token: ${{ secrets.ALL_REPO_ACCESS_TOKEN }}
           repository: plancksecurity/botan
           run-id: 7625124553
-          path: /home/runner/install
+          path: . 
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
