@@ -32,9 +32,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ilammy/msvc-dev-cmd@v1
         with:
-          toolset: 16.0
           arch: amd64
-          vsversion: 16.0
           spectre: true
           sdk: 10.0.10240.0
       - name: Get botan 
