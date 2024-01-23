@@ -62,6 +62,13 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+      - name: Run cargo build 
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release
+        env:
+          RUSTFLAGS: -luser32 
       - name: archive artifacts on sha
         uses: actions/upload-artifact@v4
         with:
