@@ -29,6 +29,10 @@ jobs:
   windows-release:
     runs-on: windows-latest
     steps:
+      - name: Install SDK
+        uses: fbactions/setup-winsdk@v2
+        with:
+          winsdk-build-version: 19041
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v1.1
         with:
