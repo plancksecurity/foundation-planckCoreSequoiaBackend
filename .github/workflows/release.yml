@@ -35,7 +35,7 @@ jobs:
         id: windows-cache-cargo
         uses: actions/cache@v4
         with:
-          path: .cargo
+          path: $HOME/.cargo
           key: ${{ runner.os }}-cargo-cache
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v1.1
