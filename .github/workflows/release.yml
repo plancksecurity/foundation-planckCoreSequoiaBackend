@@ -50,8 +50,12 @@ jobs:
           toolchain: stable
       - uses: actions-rs/cargo@v1
         with:
+          command: add 
+          args: user32-sys@0.2.0
+      - uses: actions-rs/cargo@v1
+        with:
           command: build
-          args: --target=i686-pc-windows-msvc --features crypto-botan2 --no-default-features --release
+          args: --features crypto-botan2 --no-default-features --release
       - name: archive artifacts on sha
         uses: actions/upload-artifact@v4
         with:
