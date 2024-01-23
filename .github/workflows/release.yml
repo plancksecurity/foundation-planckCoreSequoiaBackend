@@ -10,7 +10,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Get botan 
-        run: apt install -y libbotan-2-dev
+        run: sudo apt install -y libbotan-2-dev
       - uses: actions/checkout@v4
       - run: sudo apt install cargo 
       - run: make
