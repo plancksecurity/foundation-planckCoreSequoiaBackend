@@ -28,8 +28,6 @@ jobs:
 
   windows-release:
     runs-on: windows-latest
-    env:
-      PREFIX: install
     steps:
       - uses: actions/checkout@v4
       - uses: ilammy/msvc-dev-cmd@v1
@@ -43,6 +41,8 @@ jobs:
           repository: plancksecurity/botan
           run-id: 7625124553
           path: . 
+      - name: Relocate lib
+        run: cp lib\botan.lib botan-3.lib
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
