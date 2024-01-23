@@ -23,7 +23,7 @@ CARGOFLAGS=--release
 !ENDIF
 
 build:
-	$(CARGO) build --features crypto-botan --no-default-features $(CARGOFLAGS)
+	$(CARGO) build --features crypto-botan2 --no-default-features $(CARGOFLAGS)
 	@echo.
 	@echo Built $(TARGET)
 
