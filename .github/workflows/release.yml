@@ -6,8 +6,15 @@ jobs:
   ubuntu-release:
     runs-on: ubuntu-latest
     env:
+      CARGO_HOME: /home/runner/.cargo
       PREFIX: /home/runner/install
     steps:
+      - name: Linux Cargo Cache
+        id: linux-cache-cargo
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/.cargo
+          key: linux-cache-cargo
       - name: Install botan 
         run: sudo apt install -y libbotan-2-dev
       - uses: actions/checkout@v4
@@ -29,7 +36,7 @@ jobs:
   windows-release:
     runs-on: windows-latest
     env:
-      CARGO_HOME: "C:\\cargo"
+      CARGO_HOME: "C:\\Users\\runneradmin\\.cargo"
     steps:
       - name: Get sources
         uses: actions/checkout@v4
@@ -37,7 +44,7 @@ jobs:
         id: windows-cache-cargo
         uses: actions/cache@v4
         with:
-          path: "C:\\cargo"
+          path: "C:\\Users\\runneradmin\\.cargo"
           key: windows-cache-cargo
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v1.1
