@@ -1,3 +1,17 @@
-[build]
-rustflags = ["-C", "link-args=-luser32"]
+[target.'cfg(windows)']
+rustflags = [
+          "-Dwarnings",
+          "-Aunused-parens",
+          "-C",
+          "link-args=-luser32",
+]
+
+[target.'cfg(not(windows))']
+# Note: if the RUSTFLAGS environment variable is set, this will be
+# ignored.
+rustflags = [
+          "-Dwarnings",
+          "-Aunused-parens",
+]
+
 
