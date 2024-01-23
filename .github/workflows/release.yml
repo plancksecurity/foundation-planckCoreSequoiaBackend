@@ -54,7 +54,7 @@ jobs:
         with:
           toolchain: stable
       - name: Build project
-        run: msbuild build-win64
+        run: msbuild /property:Configuration=Release /property:Platform=x64 build-win64
 #      - uses: actions-rs/cargo@v1
 #        with:
 #          command: build
