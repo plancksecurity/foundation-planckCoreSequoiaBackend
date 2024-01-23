@@ -5,6 +5,3 @@ rustflags = [
           "-Dwarnings",
           "-Aunused-parens",
 ]
-
-[target.'cfg(windows)']
-rustc-link-lib = ["user32"]

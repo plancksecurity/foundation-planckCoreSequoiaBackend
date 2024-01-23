@@ -28,6 +28,8 @@ jobs:
 
   windows-release:
     runs-on: windows-latest
+    env:
+      CARGO_HOME: "C:\\cargo"
     steps:
       - name: Get sources
         uses: actions/checkout@v4
@@ -35,8 +37,8 @@ jobs:
         id: windows-cache-cargo
         uses: actions/cache@v4
         with:
-          path: C:\Users\runneradmin\.cargo
-          key: ${{ runner.os }}-cargo-cache
+          path: "C:\\cargo"
+          key: windows-cache-cargo
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v1.1
       - name: Get botan 
