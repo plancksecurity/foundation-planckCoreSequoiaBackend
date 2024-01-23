@@ -62,8 +62,6 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - name: Build project
-        run: msbuild /property:Configuration=Release /property:Platform=x64 build-win64
       - name: archive artifacts on sha
         uses: actions/upload-artifact@v4
         with:
