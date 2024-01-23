@@ -29,11 +29,12 @@ jobs:
   windows-release:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: amd64
-          sdk: 10.0.20348
+      - name: Add msbuild to PATH
+        uses: microsoft/setup-msbuild@v1.1
+          with:
+          msbuild-architecture: x64
+      - name: Get sources
+        uses: actions/checkout@v4
       - name: Get botan 
         uses: actions/download-artifact@v4
         with:
