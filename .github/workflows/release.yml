@@ -1,0 +1,28 @@
+name: release
+
+on: push
+
+jobs:
+  ubuntu-release:
+    runs-on: ubuntu-latest
+    env:
+      YML2_PATH: /home/runner/venv/bin
+      PREFIX: /home/runner/install
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt install cargo 
+      - run: make
+      - run: make install
+      - name: archive artifacts on sha
+        uses: actions/upload-artifact@v4
+        with:
+          name: ubuntu-${{ github.sha }}
+          path: /home/runner/install
+      - name: archive artifacts on tag
+        if: github.ref_type == 'tag'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ubuntu-${{ github.ref }}
+          path: install
+
+
