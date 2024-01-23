@@ -37,6 +37,8 @@ jobs:
         with:
           path: .cargo
           key: ${{ runner.os }}-cargo-cache
+      - name: Add msbuild to PATH
+        uses: microsoft/setup-msbuild@v1.1
       - name: Get botan 
         uses: actions/download-artifact@v4
         with:
@@ -47,17 +49,16 @@ jobs:
           path: . 
       - name: Relocate lib
         run: cp lib\botan.lib botan.lib
-      - uses: actions-rs/toolchain@v1
+      - name: Setup rust toolchain
+        uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      - uses: actions-rs/cargo@v1
-        with:
-          command: add 
-          args: user32-sys@0.2.0
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --features crypto-botan2 --no-default-features --release
+      - name: Build project
+        run: msbuild build-win64
+#      - uses: actions-rs/cargo@v1
+#        with:
+#          command: build
+#          args: --features crypto-botan2 --no-default-features --release
       - name: archive artifacts on sha
         uses: actions/upload-artifact@v4
         with:
