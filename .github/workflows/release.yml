@@ -31,11 +31,14 @@ jobs:
     steps:
       - name: Get sources
         uses: actions/checkout@v4
+      - name: Echo home
+        run: 
+          echo $HOME
       - name: Windows Cargo Cache
         id: windows-cache-cargo
         uses: actions/cache@v4
         with:
-          path: $HOME/.cargo
+          path: C:\\Users\\runneradmin\\.cargo
           key: ${{ runner.os }}-cargo-cache
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v1.1
