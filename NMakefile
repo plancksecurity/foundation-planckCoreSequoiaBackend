@@ -23,7 +23,7 @@ CARGOFLAGS=--release
 !ENDIF
 
 build:
-	$(CARGO) build --features crypto-botan --no-default-features $(CARGOFLAGS)
+	$(CARGO) build --features crypto-botan --no-default-features --target=stable-x86_64-pc-windows-msvc $(CARGOFLAGS)
 	@echo.
 	@echo Built $(TARGET)
 
