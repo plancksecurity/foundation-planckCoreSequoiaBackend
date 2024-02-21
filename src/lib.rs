@@ -2859,7 +2859,7 @@ l/Z6+iUK0OopAbQ=
         assert_eq!(ptext, MSG.as_bytes());
 
         // Clean up.
-        unsafe { Box::from_raw(session) };
+        unsafe { let _ = Box::from_raw(session); };
 
         Ok(())
     }
@@ -2902,7 +2902,7 @@ l/Z6+iUK0OopAbQ=
         //assert_eq!(ptext, MSG.as_bytes());
 
         // Clean up.
-        unsafe { Box::from_raw(session) };
+        unsafe { let _ = Box::from_raw(session); };
 
         Ok(())
     }
