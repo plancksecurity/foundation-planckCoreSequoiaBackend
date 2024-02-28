@@ -42,18 +42,18 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <NMakeBuildCommandLine>cd .. &amp;&amp; nmake /f NMakefile /e DEBUG=debug</NMakeBuildCommandLine>
-    <NMakeOutput>$(ProjectPath)..\target\debug\pep_engine_sequoia_backend.dll</NMakeOutput>
-    <NMakeCleanCommandLine>cd .. &amp;&amp; nmake /f NMakefile clean</NMakeCleanCommandLine>
+    <NMakeBuildCommandLine>cd $(ProjectPath)\..\.. &amp;&amp; nmake /f NMakefile /e DEBUG=debug OUTPUT="$(SolutionDir)$(Platform)\$(Configuration)"</NMakeBuildCommandLine>
+    <NMakeOutput>$(SolutionDir)$(Platform)\$(Configuration)\pep_engine_sequoia_backend.dll</NMakeOutput>
+    <NMakeCleanCommandLine>cd $(ProjectPath)\..\.. &amp;&amp; nmake /f NMakefile clean</NMakeCleanCommandLine>
     <NMakePreprocessorDefinitions>_DEBUG;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
-    <NMakeReBuildCommandLine>cd .. &amp;&amp; nmake /f NMakefile /e DEBUG=debug clean build</NMakeReBuildCommandLine>
+    <NMakeReBuildCommandLine>cd $(ProjectPath)\..\.. &amp;&amp; nmake /f NMakefile /e DEBUG=debug OUTPUT="$(SolutionDir)$(Platform)\$(Configuration)" clean build</NMakeReBuildCommandLine>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <NMakeBuildCommandLine>cd .. &amp;&amp; nmake /f NMakefile</NMakeBuildCommandLine>
-    <NMakeOutput>$(ProjectDir)..\target\release\pep_engine_sequoia_backend.dll</NMakeOutput>
-    <NMakeCleanCommandLine>cd .. &amp;&amp; nmake /f NMakefile clean</NMakeCleanCommandLine>
+    <NMakeBuildCommandLine>cd $(ProjectPath)\..\.. &amp;&amp; nmake /f NMakefile OUTPUT="$(SolutionDir)$(Platform)\$(Configuration)"</NMakeBuildCommandLine>
+    <NMakeOutput>$(SolutionDir)$(Platform)\$(Configuration)\pep_engine_sequoia_backend.dll</NMakeOutput>
+    <NMakeCleanCommandLine>cd $(ProjectPath)\..\.. &amp;&amp; nmake /f NMakefile clean</NMakeCleanCommandLine>
     <NMakePreprocessorDefinitions>NDEBUG;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
-    <NMakeReBuildCommandLine>cd .. &amp;&amp; nmake /f NMakefile clean build</NMakeReBuildCommandLine>
+    <NMakeReBuildCommandLine>cd $(ProjectPath)\..\.. &amp;&amp; nmake /f NMakefile clean build OUTPUT="$(SolutionDir)$(Platform)\$(Configuration)"</NMakeReBuildCommandLine>
   </PropertyGroup>
   <ItemDefinitionGroup>
   </ItemDefinitionGroup>

@@ -14,18 +14,22 @@ CARGO=cargo
 !ENDIF
 
 # Define build target and flags
+# --target=x86_64-win7-windows-msvc
 !IFDEF DEBUG
 TARGET=target\debug\pep_engine_sequoia_backend.dll
+TARGET_DIR=target\debug
 CARGOFLAGS=
 !ELSE
 TARGET=target\release\pep_engine_sequoia_backend.dll
+TARGET_DIR=target\release
 CARGOFLAGS=--release
 !ENDIF
 
 build:
-	$(CARGO) build --features crypto-botan --no-default-features --target=stable-x86_64-pc-windows-msvc $(CARGOFLAGS)
-	@echo.
+	$(CARGO) rustc $(CARGOFLAGS) -- -L$(OUTPUT)
 	@echo Built $(TARGET)
+	DEL  $(OUTPUT)\pep_engine_sequoia_backend*
+	XCOPY $(TARGET_DIR)\pep_engine_sequoia_backend* $(OUTPUT) /q
 
 clean:
-	rd /s /q target
+	RD /s /q target
