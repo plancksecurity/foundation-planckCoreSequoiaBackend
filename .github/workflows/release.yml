@@ -1,0 +1,88 @@
+name: release
+
+on: push
+
+jobs:
+  ubuntu-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      CARGO_HOME: /home/runner/.cargo
+      PREFIX: /home/runner/install
+      LDFLAGS: -Wl,-rpath /home/runner/install/lib -L/home/runner/install/lib
+      CFLAGS: -I/home/runner/install/include
+      CXXFLAGS: -I/home/runner/install/include
+      RUSTFLAGS: -C link-arg=-L/home/runner/install/lib
+      GH_TOKEN: ${{ secrets.ALL_REPO_ACCESS_TOKEN }}
+    steps:
+      - name: Linux Cargo Cache
+        id: linux-cache-cargo
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/.cargo
+          key: linux-cache-cargo
+      - name: Get botan
+        run: |
+          mkdir -p /home/runner/install
+          cd /home/runner/install
+          gh release download lev -R plancksecurity/botan -p ubuntu-release.tar.bz2
+          tar xvfj ubuntu-release.tar.bz2
+          rm ubuntu-release.tar.bz2
+      - uses: actions/checkout@v4
+      - run: sudo apt install cargo
+      - run: make
+      - run: make install
+      - run: |
+          cd /home/runner/install
+          tar cvj . > ../ubuntu-release.tar.bz2
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.head_ref || github.ref_name }}
+          files: /home/runner/ubuntu-release.tar.bz2
+          fail_on_unmatched_files: true
+
+  windows-release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    env:
+      CARGO_HOME: "C:\\Users\\runneradmin\\.cargo"
+      GH_TOKEN: ${{ secrets.ALL_REPO_ACCESS_TOKEN }}
+      RUSTFLAGS: -luser32
+    steps:
+      - name: Get sources
+        uses: actions/checkout@v4
+      - name: Windows Cargo Cache
+        id: windows-cache-cargo
+        uses: actions/cache@v4
+        with:
+          path: "C:\\Users\\runneradmin\\.cargo"
+          key: windows-cache-cargo
+      - name: Get botan
+        run: |
+          mkdir C:\Users\runneradmin\install
+          cd C:\Users\runneradmin\install
+          gh release download lev -R plancksecurity/botan -p windows-release.zip
+          unzip windows-release.zip
+          rm windows-release.zip
+      - name: Setup rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Run cargo build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release
+      - name: Install
+        run: mv target\release\*pep_engine_sequoia_backend.* C:\Users\runneradmin\install\lib
+      - name: Compress
+        run: Compress-Archive -Path C:\Users\runneradmin\install\* -Destination windows-release.zip
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.head_ref || github.ref_name }}
+          files: windows-release.zip
+          fail_on_unmatched_files: true
