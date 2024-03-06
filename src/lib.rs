@@ -1372,7 +1372,7 @@ ffi!(fn _pgp_generate_keypair(session: *mut Session,
         Some(session.cipher_suite().try_into().unwrap_or_default()),
         Some(userid));
 
-    if ( identity.flags == PepIdentityFlags::SignIdent ) {
+    if identity.flags == PepIdentityFlags::SignIdent {
         certb = certb.set_password(password).set_validity_period(None);
     } else {
         certb = certb.set_password(password);
@@ -2858,7 +2858,7 @@ l/Z6+iUK0OopAbQ=
         assert_eq!(ptext, MSG.as_bytes());
 
         // Clean up.
-        unsafe { Box::from_raw(session) };
+        unsafe { let _ = Box::from_raw(session); };
 
         Ok(())
     }
@@ -2901,7 +2901,7 @@ l/Z6+iUK0OopAbQ=
         //assert_eq!(ptext, MSG.as_bytes());
 
         // Clean up.
-        unsafe { Box::from_raw(session) };
+        unsafe { let _ = Box::from_raw(session); };
 
         Ok(())
     }
