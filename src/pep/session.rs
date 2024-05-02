@@ -216,6 +216,6 @@ mod tests {
             session.deinit();
         }
 
-        unsafe { Box::from_raw(session) };
+        unsafe { let _ = Box::from_raw(session); };
     }
 }

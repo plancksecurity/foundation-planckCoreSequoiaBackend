@@ -138,8 +138,7 @@ impl Keystore {
     /// This is used for the unit tests.
     #[cfg(test)]
     pub(crate) fn init_in_memory() -> Result<Self> {
-        Self::init_(Some(&PathBuf::from("/Users/saschabacardit/Downloads/pep3/".to_owned())))
-        //Self::init_(None)
+        Self::init_(None)
     }
 
     fn init_(home: Option<&Path>) -> Result<Self> {
