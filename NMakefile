@@ -32,4 +32,4 @@ build:
 	XCOPY $(TARGET_DIR)\pep_engine_sequoia_backend* $(OUTPUT) /q
 
 clean:
-	RD /s /q target
+	IF EXIST target RD /s /q target
