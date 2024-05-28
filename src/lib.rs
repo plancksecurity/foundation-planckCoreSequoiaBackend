@@ -2360,6 +2360,11 @@ ffi!(fn pgp_random(buffer: *mut c_char, len: size_t) -> Result<()> {
     Ok(())
 });
 
+ffi!(fn pgp_manage_passphrase(session: &mut Session, identity: *const PepIdentity, old_passphrase: *const c_char, passphrase: *const c_char) -> Result<()> {
+    trace!("pgp_manage_passphrase({:?}, {:?}, {:?}, {:?})", session.version, identity, old_passphrase, passphrase);
+    Ok(())
+});
+
 #[test]
 fn test_random() {
     fn rand(i: usize) -> Vec<u8> {
