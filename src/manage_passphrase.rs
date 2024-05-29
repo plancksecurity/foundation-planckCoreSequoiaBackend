@@ -9,6 +9,53 @@ use crate::pep::{Error, PepIdentity, Result, Session};
 
 use crate::ErrorCode;
 
+ffi!(
+    fn pgp_manage_passphrase(
+        session: &mut Session,
+        identity: *const PepIdentity,
+        old_passphrase: *const c_char,
+        passphrase: *const c_char) -> Result<()> {
+        let fpr_str = unsafe {
+            identity
+                .as_ref()
+                .map(|i| i.fingerprint())
+                .flatten()
+                .ok_or_else(|| illegal_value("no fingerprint on identity"))?
+                .to_str()
+                .map_err(|_| illegal_value("cannot convert identity fingerprint to a string"))?
+        };
+
+        let fingerprint = Fingerprint::from_hex(fpr_str)
+            .map_err(|_| illegal_value("cannot create fingerprint from hex value"))?;
+
+        let (cert, _) = session.keystore().cert_find(fingerprint, true)?;
+
+        if !cert.is_tsk() {
+            return Err(illegal_value("have no secret key"));
+        }
+
+        let mk_passphrase = |pass: *const c_char| {
+            unsafe { check_cstr!(pass) }
+                .to_str()
+                .map(|s| Password::from(s))
+                .map_err(|_| illegal_value("passphrase cannot be converted"))
+        };
+
+        let old_passphrase = mk_passphrase(old_passphrase)?;
+        let new_passphrase = mk_passphrase(passphrase)?;
+
+        let decrypted_packets = decrypted_packets(&cert, &old_passphrase)?;
+
+        let cert = cert
+            .insert_packets(decrypted_packets)
+            .map_err(|_| illegal_value("cannot not re-insert decrypted packets"))?;
+
+        let _encrypted_packets = encrypted_packets(&cert, &new_passphrase)?;
+
+        Ok(())
+    }
+);
+
 fn illegal_value(str: &str) -> Error {
     Error::IllegalValue(str.to_string())
 }
@@ -86,50 +133,3 @@ fn encrypted_packets(cert: &Cert, passphrase: &Password) -> Result<Vec<Packet>> 
 
     Ok(encrypted_packets)
 }
-
-ffi!(
-    fn pgp_manage_passphrase(
-        session: &mut Session,
-        identity: *const PepIdentity,
-        old_passphrase: *const c_char,
-        passphrase: *const c_char) -> Result<()> {
-        let fpr_str = unsafe {
-            identity
-                .as_ref()
-                .map(|i| i.fingerprint())
-                .flatten()
-                .ok_or_else(|| illegal_value("no fingerprint on identity"))?
-                .to_str()
-                .map_err(|_| illegal_value("cannot convert identity fingerprint to a string"))?
-        };
-
-        let fingerprint = Fingerprint::from_hex(fpr_str)
-            .map_err(|_| illegal_value("cannot create fingerprint from hex value"))?;
-
-        let (cert, _) = session.keystore().cert_find(fingerprint, true)?;
-
-        if !cert.is_tsk() {
-            return Err(illegal_value("have no secret key"));
-        }
-
-        let mk_passphrase = |pass: *const c_char| {
-            unsafe { check_cstr!(pass) }
-                .to_str()
-                .map(|s| Password::from(s))
-                .map_err(|_| illegal_value("passphrase cannot be converted"))
-        };
-
-        let old_passphrase = mk_passphrase(old_passphrase)?;
-        let new_passphrase = mk_passphrase(passphrase)?;
-
-        let decrypted_packets = decrypted_packets(&cert, &old_passphrase)?;
-
-        let cert = cert
-            .insert_packets(decrypted_packets)
-            .map_err(|_| illegal_value("cannot not re-insert decrypted packets"))?;
-
-        let _encrypted_packets = encrypted_packets(&cert, &new_passphrase)?;
-
-        Ok(())
-    }
-);
