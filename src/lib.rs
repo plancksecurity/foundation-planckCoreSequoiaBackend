@@ -2373,7 +2373,7 @@ ffi!(
             old_passphrase,
             passphrase
         );
-        let _fpr = unsafe {
+        let fpr_str = unsafe {
             identity
                 .as_ref()
                 .map(|i| i.fingerprint())
@@ -2382,6 +2382,8 @@ ffi!(
                 .to_str()
                 .map_err(|_| Error::IllegalValue("malformed identity fpr".to_string()))?
         };
+        let _fingerprint = Fingerprint::from_hex(fpr_str)
+            .map_err(|_| Error::IllegalValue("malformed identity fpr".to_string()))?;
         Ok(())
     }
 );
