@@ -46,32 +46,32 @@ ffi!(
             passphrase
         );
 
-        let illegal_value = || Error::IllegalValue("malformed identity fpr".to_string());
-        let no_secret_key = || Error::IllegalValue("no secret key".to_string());
+        let error_fn = |s: &str| Error::IllegalValue(s.to_string());
 
         let fpr_str = unsafe {
             identity
                 .as_ref()
                 .map(|i| i.fingerprint())
                 .flatten()
-                .ok_or_else(|| illegal_value())?
+                .ok_or_else(|| error_fn("no fingerprint on identity"))?
                 .to_str()
-                .map_err(|_| illegal_value())?
+                .map_err(|_| error_fn("cannot convert identity fingerprint to a string"))?
         };
 
-        let fingerprint = Fingerprint::from_hex(fpr_str).map_err(|_| illegal_value())?;
+        let fingerprint = Fingerprint::from_hex(fpr_str)
+            .map_err(|_| error_fn("cannot create fingerprint from hex value"))?;
 
         let (cert, _) = session.keystore().cert_find(fingerprint, true)?;
 
         if !cert.is_tsk() {
-            return Err(no_secret_key());
+            return Err(error_fn("have no secret key"));
         }
 
         let mk_passphrase = |pass: *const c_char| {
             unsafe { pass.as_ref() }
                 .map(|chars| chars.to_string())
                 .map(|s| Password::from(s))
-                .ok_or_else(|| Error::IllegalValue("passphrase cannot be converted".to_string()))
+                .ok_or_else(|| error_fn("passphrase cannot be converted"))
         };
 
         let _old_passphrase = mk_passphrase(old_passphrase)?;
@@ -82,7 +82,7 @@ ffi!(
             .key()
             .clone()
             .parts_into_secret()
-            .map_err(|_| no_secret_key())?;
+            .map_err(|_| error_fn("primary key has no secret parts"))?;
 
         Ok(())
     }
