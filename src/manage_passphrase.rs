@@ -58,8 +58,7 @@ ffi!(
 
         let _blarg = session
             .keystore()
-            .cert_save(cert)
-            .map_err(|_| illegal_value("cannot save re-encrypted cert"))?;
+            .cert_save(cert)?;
 
         Ok(())
     }
