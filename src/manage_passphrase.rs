@@ -69,7 +69,7 @@ ffi!(
         };
 
         let old_passphrase = mk_passphrase(old_passphrase)?;
-        let _new_passphrase = mk_passphrase(passphrase)?;
+        let new_passphrase = mk_passphrase(passphrase)?;
 
         let primary_key = cert
             .primary_key()
@@ -90,6 +90,21 @@ ffi!(
             let packet: Packet = decrypt_key(secondary_key, &old_passphrase)?.into();
             decrypted_packets.push(packet);
         }
+
+        let cert = cert
+            .insert_packets(decrypted_packets)
+            .map_err(|_| error_fn("cannot not re-insert decrypted packets"))?;
+
+        let new_pk_packet: Packet = cert
+            .primary_key()
+            .key()
+            .clone()
+            .parts_into_secret()
+            .map_err(|_| error_fn("primary key has no secret parts"))?
+            .encrypt_secret(&new_passphrase)
+            .map_err(|_| error_fn("cannot encrypt primary key"))?
+            .into();
+        let mut _encrypted_packets: Vec<Packet> = vec![new_pk_packet];
 
         Ok(())
     }
