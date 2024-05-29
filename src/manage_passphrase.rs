@@ -50,7 +50,11 @@ ffi!(
             .insert_packets(decrypted_packets)
             .map_err(|_| illegal_value("cannot not re-insert decrypted packets"))?;
 
-        let _encrypted_packets = encrypted_packets(&cert, &new_passphrase)?;
+        let encrypted_packets = encrypted_packets(&cert, &new_passphrase)?;
+
+        let _cert = cert
+            .insert_packets(encrypted_packets)
+            .map_err(|_| illegal_value("cannot not re-insert encrypted packets"))?;
 
         Ok(())
     }
