@@ -1,9 +1,36 @@
 use libc::c_char;
+use sequoia_openpgp::packet::key::{KeyRole, SecretKeyMaterial, SecretParts};
+use sequoia_openpgp::packet::Key;
 use sequoia_openpgp::{crypto::Password, Fingerprint};
 
 use crate::pep::{Error, PepIdentity, Result, Session};
 
 use crate::ErrorCode;
+
+fn _decrypt_key<R>(key: Key<SecretParts, R>, password: &Password) -> Result<Key<SecretParts, R>>
+where
+    R: KeyRole + Clone,
+{
+    let error_fn = |s: &str| Error::IllegalValue(s.to_string());
+
+    let key = key
+        .parts_as_secret()
+        .map_err(|e| error_fn(&e.to_string()))?;
+    match key.secret() {
+        SecretKeyMaterial::Unencrypted(_) => Ok(key.clone()),
+        SecretKeyMaterial::Encrypted(e) => {
+            if !e.s2k().is_supported() {
+                return Err(error_fn("unsupported key protection"));
+            }
+
+            if let Ok(key) = key.clone().decrypt_secret(password) {
+                return Ok(key);
+            }
+
+            Err(error_fn("unable to decrypt secret key material"))
+        }
+    }
+}
 
 ffi!(
     fn pgp_manage_passphrase(
