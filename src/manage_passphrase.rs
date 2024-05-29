@@ -104,7 +104,19 @@ ffi!(
             .encrypt_secret(&new_passphrase)
             .map_err(|_| error_fn("cannot encrypt primary key"))?
             .into();
-        let mut _encrypted_packets: Vec<Packet> = vec![new_pk_packet];
+        let mut encrypted_packets: Vec<Packet> = vec![new_pk_packet];
+
+        for key_amalgamation in cert.keys().subkeys().unencrypted_secret() {
+            let secondary_encrypted_key: Packet = key_amalgamation
+                .key()
+                .clone()
+                .parts_into_secret()
+                .map_err(|_| error_fn("unencrypted secondary key has no secret parts"))?
+                .encrypt_secret(&new_passphrase)
+                .map_err(|_| error_fn("cannot encrypt secondary key"))?
+                .into();
+            encrypted_packets.push(secondary_encrypted_key);
+        }
 
         Ok(())
     }
