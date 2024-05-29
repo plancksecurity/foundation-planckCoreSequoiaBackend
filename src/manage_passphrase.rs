@@ -3,6 +3,7 @@ use sequoia_openpgp::packet::key::{KeyRole, SecretKeyMaterial, SecretParts};
 use sequoia_openpgp::packet::Key;
 use sequoia_openpgp::Packet;
 use sequoia_openpgp::{crypto::Password, Fingerprint};
+use std::ffi::CStr;
 
 use crate::pep::{Error, PepIdentity, Result, Session};
 
@@ -69,10 +70,10 @@ ffi!(
         }
 
         let mk_passphrase = |pass: *const c_char| {
-            unsafe { pass.as_ref() }
-                .map(|chars| chars.to_string())
+            unsafe { check_cstr!(pass) }
+                .to_str()
                 .map(|s| Password::from(s))
-                .ok_or_else(|| error_fn("passphrase cannot be converted"))
+                .map_err(|_| error_fn("passphrase cannot be converted"))
         };
 
         let old_passphrase = mk_passphrase(old_passphrase)?;
