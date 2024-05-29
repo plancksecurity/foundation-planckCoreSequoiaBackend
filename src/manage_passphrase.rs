@@ -52,9 +52,14 @@ ffi!(
 
         let encrypted_packets = encrypted_packets(&cert, &new_passphrase)?;
 
-        let _cert = cert
+        let cert = cert
             .insert_packets(encrypted_packets)
             .map_err(|_| illegal_value("cannot not re-insert encrypted packets"))?;
+
+        let _blarg = session
+            .keystore()
+            .cert_save(cert)
+            .map_err(|_| illegal_value("cannot save re-encrypted cert"))?;
 
         Ok(())
     }
