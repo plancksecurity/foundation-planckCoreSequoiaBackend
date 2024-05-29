@@ -1,9 +1,7 @@
 use std::cmp;
 use std::convert::TryInto;
 use std::env;
-use std::ffi::{
-    CStr,
-};
+use std::ffi::CStr;
 use std::io::{
     Read,
     Write,
