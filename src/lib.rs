@@ -2387,10 +2387,9 @@ ffi!(
 
         let (cert, _) = session.keystore().cert_find(fingerprint, true)?;
 
-        let _vc = wrap_err!(
-            cert.with_policy(crate::P, None),
-            KeyUnsuitable,
-            format!("{} rejected by policy", cert.fingerprint()))?;
+        if !cert.is_tsk() {
+            return Err(Error::IllegalValue("not a secret key".to_string()));
+        }
 
         Ok(())
     }
