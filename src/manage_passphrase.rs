@@ -9,33 +9,31 @@ use crate::pep::{Error, PepIdentity, Result, Session};
 
 use crate::ErrorCode;
 
+fn illegal_value(str: &str) -> Error {
+    Error::IllegalValue(str.to_string())
+}
+
 fn decrypt_key<R>(key: Key<SecretParts, R>, password: &Password) -> Result<Key<SecretParts, R>>
 where
     R: KeyRole + Clone,
 {
-    let error_fn = |s: &str| Error::IllegalValue(s.to_string());
-
     let key = key
         .parts_as_secret()
-        .map_err(|e| error_fn(&e.to_string()))?;
+        .map_err(|e| illegal_value(&e.to_string()))?;
     match key.secret() {
         SecretKeyMaterial::Unencrypted(_) => Ok(key.clone()),
         SecretKeyMaterial::Encrypted(e) => {
             if !e.s2k().is_supported() {
-                return Err(error_fn("unsupported key protection"));
+                return Err(illegal_value("unsupported key protection"));
             }
 
             if let Ok(key) = key.clone().decrypt_secret(password) {
                 return Ok(key);
             }
 
-            Err(error_fn("unable to decrypt secret key material"))
+            Err(illegal_value("unable to decrypt secret key material"))
         }
     }
-}
-
-fn illegal_value(str: &str) -> Error {
-    Error::IllegalValue(str.to_string())
 }
 
 fn decrypted_packets(cert: &Cert, passphrase: &Password) -> Result<Vec<Packet>> {
@@ -68,32 +66,30 @@ ffi!(
         identity: *const PepIdentity,
         old_passphrase: *const c_char,
         passphrase: *const c_char) -> Result<()> {
-        let error_fn = |s: &str| Error::IllegalValue(s.to_string());
-
         let fpr_str = unsafe {
             identity
                 .as_ref()
                 .map(|i| i.fingerprint())
                 .flatten()
-                .ok_or_else(|| error_fn("no fingerprint on identity"))?
+                .ok_or_else(|| illegal_value("no fingerprint on identity"))?
                 .to_str()
-                .map_err(|_| error_fn("cannot convert identity fingerprint to a string"))?
+                .map_err(|_| illegal_value("cannot convert identity fingerprint to a string"))?
         };
 
         let fingerprint = Fingerprint::from_hex(fpr_str)
-            .map_err(|_| error_fn("cannot create fingerprint from hex value"))?;
+            .map_err(|_| illegal_value("cannot create fingerprint from hex value"))?;
 
         let (cert, _) = session.keystore().cert_find(fingerprint, true)?;
 
         if !cert.is_tsk() {
-            return Err(error_fn("have no secret key"));
+            return Err(illegal_value("have no secret key"));
         }
 
         let mk_passphrase = |pass: *const c_char| {
             unsafe { check_cstr!(pass) }
                 .to_str()
                 .map(|s| Password::from(s))
-                .map_err(|_| error_fn("passphrase cannot be converted"))
+                .map_err(|_| illegal_value("passphrase cannot be converted"))
         };
 
         let old_passphrase = mk_passphrase(old_passphrase)?;
@@ -103,16 +99,16 @@ ffi!(
 
         let cert = cert
             .insert_packets(decrypted_packets)
-            .map_err(|_| error_fn("cannot not re-insert decrypted packets"))?;
+            .map_err(|_| illegal_value("cannot not re-insert decrypted packets"))?;
 
         let new_pk_packet: Packet = cert
             .primary_key()
             .key()
             .clone()
             .parts_into_secret()
-            .map_err(|_| error_fn("primary key has no secret parts"))?
+            .map_err(|_| illegal_value("primary key has no secret parts"))?
             .encrypt_secret(&new_passphrase)
-            .map_err(|_| error_fn("cannot encrypt primary key"))?
+            .map_err(|_| illegal_value("cannot encrypt primary key"))?
             .into();
         let mut encrypted_packets: Vec<Packet> = vec![new_pk_packet];
 
@@ -121,9 +117,9 @@ ffi!(
                 .key()
                 .clone()
                 .parts_into_secret()
-                .map_err(|_| error_fn("unencrypted secondary key has no secret parts"))?
+                .map_err(|_| illegal_value("unencrypted secondary key has no secret parts"))?
                 .encrypt_secret(&new_passphrase)
-                .map_err(|_| error_fn("cannot encrypt secondary key"))?
+                .map_err(|_| illegal_value("cannot encrypt secondary key"))?
                 .into();
             encrypted_packets.push(secondary_encrypted_key);
         }
