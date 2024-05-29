@@ -2382,8 +2382,9 @@ ffi!(
                 .to_str()
                 .map_err(|_| Error::IllegalValue("malformed identity fpr".to_string()))?
         };
-        let _fingerprint = Fingerprint::from_hex(fpr_str)
+        let fingerprint = Fingerprint::from_hex(fpr_str)
             .map_err(|_| Error::IllegalValue("malformed identity fpr".to_string()))?;
+        let (_cert, _) = session.keystore().cert_find(fingerprint, true)?;
         Ok(())
     }
 );
