@@ -79,15 +79,25 @@ ffi!(
         let old_passphrase = mk_passphrase(old_passphrase)?;
         let _new_passphrase = mk_passphrase(passphrase)?;
 
-        let pk = cert
+        let primary_key = cert
             .primary_key()
             .key()
             .clone()
             .parts_into_secret()
             .map_err(|_| error_fn("primary key has no secret parts"))?;
 
-        let pk_packet: Packet = decrypt_key(pk, &old_passphrase)?.into();
-        let mut _decrypted: Vec<Packet> = vec![pk_packet];
+        let pk_packet: Packet = decrypt_key(primary_key, &old_passphrase)?.into();
+        let mut decrypted_packets: Vec<Packet> = vec![pk_packet];
+
+        for key_amalgamation in cert.keys().subkeys().secret() {
+            let secondary_key = key_amalgamation
+                .key()
+                .clone()
+                .parts_into_secret()
+                .map_err(|_| error_fn("secondary key has no secret parts"))?;
+            let packet: Packet = decrypt_key(secondary_key, &old_passphrase)?.into();
+            decrypted_packets.push(packet);
+        }
 
         Ok(())
     }
