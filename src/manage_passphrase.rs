@@ -40,14 +40,6 @@ ffi!(
         identity: *const PepIdentity,
         old_passphrase: *const c_char,
         passphrase: *const c_char) -> Result<()> {
-        trace!(
-            "pgp_manage_passphrase({:?}, {:?}, {:?}, {:?})",
-            session.version,
-            identity,
-            old_passphrase,
-            passphrase
-        );
-
         let error_fn = |s: &str| Error::IllegalValue(s.to_string());
 
         let fpr_str = unsafe {
