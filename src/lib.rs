@@ -2360,10 +2360,31 @@ ffi!(fn pgp_random(buffer: *mut c_char, len: size_t) -> Result<()> {
     Ok(())
 });
 
-ffi!(fn pgp_manage_passphrase(session: &mut Session, identity: *const PepIdentity, old_passphrase: *const c_char, passphrase: *const c_char) -> Result<()> {
-    trace!("pgp_manage_passphrase({:?}, {:?}, {:?}, {:?})", session.version, identity, old_passphrase, passphrase);
-    Ok(())
-});
+ffi!(
+    fn pgp_manage_passphrase(
+        session: &mut Session,
+        identity: *const PepIdentity,
+        old_passphrase: *const c_char,
+        passphrase: *const c_char) -> Result<()> {
+        trace!(
+            "pgp_manage_passphrase({:?}, {:?}, {:?}, {:?})",
+            session.version,
+            identity,
+            old_passphrase,
+            passphrase
+        );
+        let _fpr = unsafe {
+            identity
+                .as_ref()
+                .map(|i| i.fingerprint())
+                .flatten()
+                .ok_or_else(|| Error::IllegalValue("malformed identity fpr".to_string()))?
+                .to_str()
+                .map_err(|_| Error::IllegalValue("malformed identity fpr".to_string()))?
+        };
+        Ok(())
+    }
+);
 
 #[test]
 fn test_random() {
