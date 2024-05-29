@@ -1,13 +1,14 @@
 use libc::c_char;
 use sequoia_openpgp::packet::key::{KeyRole, SecretKeyMaterial, SecretParts};
 use sequoia_openpgp::packet::Key;
+use sequoia_openpgp::Packet;
 use sequoia_openpgp::{crypto::Password, Fingerprint};
 
 use crate::pep::{Error, PepIdentity, Result, Session};
 
 use crate::ErrorCode;
 
-fn _decrypt_key<R>(key: Key<SecretParts, R>, password: &Password) -> Result<Key<SecretParts, R>>
+fn decrypt_key<R>(key: Key<SecretParts, R>, password: &Password) -> Result<Key<SecretParts, R>>
 where
     R: KeyRole + Clone,
 {
@@ -74,15 +75,18 @@ ffi!(
                 .ok_or_else(|| error_fn("passphrase cannot be converted"))
         };
 
-        let _old_passphrase = mk_passphrase(old_passphrase)?;
+        let old_passphrase = mk_passphrase(old_passphrase)?;
         let _new_passphrase = mk_passphrase(passphrase)?;
 
-        let _pk = cert
+        let pk = cert
             .primary_key()
             .key()
             .clone()
             .parts_into_secret()
             .map_err(|_| error_fn("primary key has no secret parts"))?;
+
+        let pk_packet: Packet = decrypt_key(pk, &old_passphrase)?.into();
+        let mut _decrypted: Vec<Packet> = vec![pk_packet];
 
         Ok(())
     }
