@@ -2372,23 +2372,26 @@ ffi!(
             passphrase
         );
 
+        let illegal_value = || Error::IllegalValue("malformed identity fpr".to_string());
+        let no_secret_key = || Error::IllegalValue("no secret key".to_string());
+
         let fpr_str = unsafe {
             identity
                 .as_ref()
                 .map(|i| i.fingerprint())
                 .flatten()
-                .ok_or_else(|| Error::IllegalValue("malformed identity fpr".to_string()))?
+                .ok_or_else(|| illegal_value())?
                 .to_str()
-                .map_err(|_| Error::IllegalValue("malformed identity fpr".to_string()))?
+                .map_err(|_| illegal_value())?
         };
 
         let fingerprint = Fingerprint::from_hex(fpr_str)
-            .map_err(|_| Error::IllegalValue("malformed identity fpr".to_string()))?;
+            .map_err(|_| illegal_value())?;
 
         let (cert, _) = session.keystore().cert_find(fingerprint, true)?;
 
         if !cert.is_tsk() {
-            return Err(Error::IllegalValue("not an own identity with a secret key".to_string()));
+            return Err(no_secret_key());
         }
 
         let mk_passphrase = |pass: *const c_char| {
