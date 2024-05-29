@@ -1,8 +1,8 @@
 use libc::c_char;
 use sequoia_openpgp::packet::key::{KeyRole, SecretKeyMaterial, SecretParts};
 use sequoia_openpgp::packet::Key;
-use sequoia_openpgp::Packet;
 use sequoia_openpgp::{crypto::Password, Fingerprint};
+use sequoia_openpgp::{Cert, Packet};
 use std::ffi::CStr;
 
 use crate::pep::{Error, PepIdentity, Result, Session};
@@ -32,6 +32,34 @@ where
             Err(error_fn("unable to decrypt secret key material"))
         }
     }
+}
+
+fn illegal_value(str: &str) -> Error {
+    Error::IllegalValue(str.to_string())
+}
+
+fn decrypted_packets(cert: &Cert, passphrase: &Password) -> Result<Vec<Packet>> {
+    let primary_key = cert
+        .primary_key()
+        .key()
+        .clone()
+        .parts_into_secret()
+        .map_err(|_| illegal_value("primary key has no secret parts"))?;
+
+    let pk_packet: Packet = decrypt_key(primary_key, &passphrase)?.into();
+    let mut decrypted_packets: Vec<Packet> = vec![pk_packet];
+
+    for key_amalgamation in cert.keys().subkeys().secret() {
+        let secondary_key = key_amalgamation
+            .key()
+            .clone()
+            .parts_into_secret()
+            .map_err(|_| illegal_value("secondary key has no secret parts"))?;
+        let packet: Packet = decrypt_key(secondary_key, &passphrase)?.into();
+        decrypted_packets.push(packet);
+    }
+
+    Ok(decrypted_packets)
 }
 
 ffi!(
@@ -71,25 +99,7 @@ ffi!(
         let old_passphrase = mk_passphrase(old_passphrase)?;
         let new_passphrase = mk_passphrase(passphrase)?;
 
-        let primary_key = cert
-            .primary_key()
-            .key()
-            .clone()
-            .parts_into_secret()
-            .map_err(|_| error_fn("primary key has no secret parts"))?;
-
-        let pk_packet: Packet = decrypt_key(primary_key, &old_passphrase)?.into();
-        let mut decrypted_packets: Vec<Packet> = vec![pk_packet];
-
-        for key_amalgamation in cert.keys().subkeys().secret() {
-            let secondary_key = key_amalgamation
-                .key()
-                .clone()
-                .parts_into_secret()
-                .map_err(|_| error_fn("secondary key has no secret parts"))?;
-            let packet: Packet = decrypt_key(secondary_key, &old_passphrase)?.into();
-            decrypted_packets.push(packet);
-        }
+        let decrypted_packets = decrypted_packets(&cert, &old_passphrase)?;
 
         let cert = cert
             .insert_packets(decrypted_packets)
