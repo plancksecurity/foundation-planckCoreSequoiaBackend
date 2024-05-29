@@ -2406,6 +2406,8 @@ ffi!(
         let _old_passphrase = mk_passphrase(old_passphrase)?;
         let _new_passphrase = mk_passphrase(passphrase)?;
 
+        let _pk = cert.primary_key().key().clone().parts_into_secret().map_err(|_| no_secret_key())?;
+
         Ok(())
     }
 );
