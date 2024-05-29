@@ -2388,8 +2388,20 @@ ffi!(
         let (cert, _) = session.keystore().cert_find(fingerprint, true)?;
 
         if !cert.is_tsk() {
-            return Err(Error::IllegalValue("not a secret key".to_string()));
+            return Err(Error::IllegalValue("not an own identity with a secret key".to_string()));
         }
+
+        let mk_passphrase = |pass: *const c_char| {
+            unsafe {
+                pass.as_ref()
+            }
+            .map(|chars| chars.to_string())
+            .map(|s| Password::from(s))
+            .ok_or_else(|| Error::IllegalValue("passphrase cannot be converted".to_string()))
+        };
+
+        let _old_passphrase = mk_passphrase(old_passphrase)?;
+        let _new_passphrase = mk_passphrase(passphrase)?;
 
         Ok(())
     }
