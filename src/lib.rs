@@ -2373,6 +2373,7 @@ ffi!(
             old_passphrase,
             passphrase
         );
+
         let fpr_str = unsafe {
             identity
                 .as_ref()
@@ -2382,9 +2383,17 @@ ffi!(
                 .to_str()
                 .map_err(|_| Error::IllegalValue("malformed identity fpr".to_string()))?
         };
+
         let fingerprint = Fingerprint::from_hex(fpr_str)
             .map_err(|_| Error::IllegalValue("malformed identity fpr".to_string()))?;
-        let (_cert, _) = session.keystore().cert_find(fingerprint, true)?;
+
+        let (cert, _) = session.keystore().cert_find(fingerprint, true)?;
+
+        let _vc = wrap_err!(
+            cert.with_policy(crate::P, None),
+            KeyUnsuitable,
+            format!("{} rejected by policy", cert.fingerprint()))?;
+
         Ok(())
     }
 );
