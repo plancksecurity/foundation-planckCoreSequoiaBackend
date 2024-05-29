@@ -60,6 +60,33 @@ fn decrypted_packets(cert: &Cert, passphrase: &Password) -> Result<Vec<Packet>> 
     Ok(decrypted_packets)
 }
 
+fn encrypted_packets(cert: &Cert, passphrase: &Password) -> Result<Vec<Packet>> {
+    let new_pk_packet: Packet = cert
+        .primary_key()
+        .key()
+        .clone()
+        .parts_into_secret()
+        .map_err(|_| illegal_value("primary key has no secret parts"))?
+        .encrypt_secret(&passphrase)
+        .map_err(|_| illegal_value("cannot encrypt primary key"))?
+        .into();
+    let mut encrypted_packets: Vec<Packet> = vec![new_pk_packet];
+
+    for key_amalgamation in cert.keys().subkeys().unencrypted_secret() {
+        let secondary_encrypted_key: Packet = key_amalgamation
+            .key()
+            .clone()
+            .parts_into_secret()
+            .map_err(|_| illegal_value("unencrypted secondary key has no secret parts"))?
+            .encrypt_secret(&passphrase)
+            .map_err(|_| illegal_value("cannot encrypt secondary key"))?
+            .into();
+        encrypted_packets.push(secondary_encrypted_key);
+    }
+
+    Ok(encrypted_packets)
+}
+
 ffi!(
     fn pgp_manage_passphrase(
         session: &mut Session,
@@ -101,28 +128,7 @@ ffi!(
             .insert_packets(decrypted_packets)
             .map_err(|_| illegal_value("cannot not re-insert decrypted packets"))?;
 
-        let new_pk_packet: Packet = cert
-            .primary_key()
-            .key()
-            .clone()
-            .parts_into_secret()
-            .map_err(|_| illegal_value("primary key has no secret parts"))?
-            .encrypt_secret(&new_passphrase)
-            .map_err(|_| illegal_value("cannot encrypt primary key"))?
-            .into();
-        let mut encrypted_packets: Vec<Packet> = vec![new_pk_packet];
-
-        for key_amalgamation in cert.keys().subkeys().unencrypted_secret() {
-            let secondary_encrypted_key: Packet = key_amalgamation
-                .key()
-                .clone()
-                .parts_into_secret()
-                .map_err(|_| illegal_value("unencrypted secondary key has no secret parts"))?
-                .encrypt_secret(&new_passphrase)
-                .map_err(|_| illegal_value("cannot encrypt secondary key"))?
-                .into();
-            encrypted_packets.push(secondary_encrypted_key);
-        }
+        let _encrypted_packets = encrypted_packets(&cert, &new_passphrase)?;
 
         Ok(())
     }
