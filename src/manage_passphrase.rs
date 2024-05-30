@@ -15,15 +15,12 @@ ffi!(
         identity: *const PepIdentity,
         old_passphrase: *const c_char,
         passphrase: *const c_char) -> Result<()> {
-        let fpr_str = unsafe {
-            identity
-                .as_ref()
-                .map(|i| i.fingerprint())
-                .flatten()
-                .ok_or_else(|| illegal_value("no fingerprint on identity"))?
-                .to_str()
-                .map_err(|_| illegal_value("cannot convert identity fingerprint to a string"))?
-        };
+        let fpr_str = unsafe { identity.as_ref() }
+            .map(|i| i.fingerprint())
+            .flatten()
+            .ok_or_else(|| illegal_value("no fingerprint on identity"))?
+            .to_str()
+            .map_err(|_| illegal_value("cannot convert identity fingerprint to a string"))?;
 
         let fingerprint = Fingerprint::from_hex(fpr_str)
             .map_err(|_| illegal_value("cannot create fingerprint from hex value"))?;
