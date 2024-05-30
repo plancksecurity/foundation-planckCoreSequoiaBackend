@@ -52,7 +52,7 @@ ffi!(
             .insert_packets(decrypted_packets)
             .map_err(|_| illegal_value("cannot not re-insert decrypted packets"))?;
 
-        let cert = if (remove_passphrase) {
+        let cert = if remove_passphrase {
             cert
         } else {
             let encrypted_packets = encrypted_packets(&cert, &new_passphrase)?;
