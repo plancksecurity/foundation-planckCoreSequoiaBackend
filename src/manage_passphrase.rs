@@ -34,17 +34,18 @@ ffi!(
             return Err(illegal_value("have no secret key"));
         }
 
-        let new_passphrase_string = unsafe { check_cstr!(passphrase) }
-            .to_str()
-            .map_err(|_| illegal_value("new passphrase cannot be converted to string"))?;
-
-        let remove_passphrase = new_passphrase_string.is_empty();
+        let remove_passphrase = {
+            let new_passphrase_string = unsafe { check_cstr!(passphrase) }
+                .to_str()
+                .map_err(|_| illegal_value("new passphrase cannot be converted to string"))?;
+            new_passphrase_string.is_empty()
+        };
 
         let mk_passphrase = |pass: *const c_char| {
             unsafe { check_cstr!(pass) }
                 .to_str()
+                .map_err(|_| illegal_value("passphrase cannot be converted to string"))
                 .map(|s| Password::from(s))
-                .map_err(|_| illegal_value("passphrase cannot be converted"))
         };
 
         let old_passphrase = mk_passphrase(old_passphrase)?;
