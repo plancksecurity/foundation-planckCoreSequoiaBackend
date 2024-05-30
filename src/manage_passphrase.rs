@@ -28,7 +28,7 @@ ffi!(
         let fingerprint = Fingerprint::from_hex(fpr_str)
             .map_err(|_| illegal_value("cannot create fingerprint from hex value"))?;
 
-        let (cert, _) = session.keystore().cert_find(fingerprint, true)?;
+        let (cert, _) = session.keystore().cert_find(fingerprint.clone(), true)?;
 
         if !cert.is_tsk() {
             return Err(illegal_value("have no secret key"));
@@ -55,6 +55,10 @@ ffi!(
         let cert = cert
             .insert_packets(encrypted_packets)
             .map_err(|_| illegal_value("cannot not re-insert encrypted packets"))?;
+
+        // The way `cert_save` handles certificate merging makes this step necessary.
+        // Otherwise, you'll end up with secrets encrypted with the old key.
+        session.keystore().cert_delete(fingerprint)?;
 
         let _blarg = session
             .keystore()
