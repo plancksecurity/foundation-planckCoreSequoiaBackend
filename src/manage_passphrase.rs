@@ -34,6 +34,12 @@ ffi!(
             return Err(illegal_value("have no secret key"));
         }
 
+        let new_passphrase_string = unsafe { check_cstr!(passphrase) }
+            .to_str()
+            .map_err(|_| illegal_value("new passphrase cannot be converted to string"))?;
+
+        let remove_passphrase = new_passphrase_string.is_empty();
+
         let mk_passphrase = |pass: *const c_char| {
             unsafe { check_cstr!(pass) }
                 .to_str()
@@ -50,11 +56,13 @@ ffi!(
             .insert_packets(decrypted_packets)
             .map_err(|_| illegal_value("cannot not re-insert decrypted packets"))?;
 
-        let encrypted_packets = encrypted_packets(&cert, &new_passphrase)?;
-
-        let cert = cert
-            .insert_packets(encrypted_packets)
-            .map_err(|_| illegal_value("cannot not re-insert encrypted packets"))?;
+        let cert = if (remove_passphrase) {
+            cert
+        } else {
+            let encrypted_packets = encrypted_packets(&cert, &new_passphrase)?;
+            cert.insert_packets(encrypted_packets)
+                .map_err(|_| illegal_value("cannot not re-insert encrypted packets"))?
+        };
 
         // The way `cert_save` handles certificate merging makes this step necessary.
         // Otherwise, you'll end up with secrets encrypted with the old key.
@@ -71,7 +79,10 @@ fn illegal_value(str: &str) -> Error {
 }
 
 fn wrong_passphrase() -> Error {
-    Error::WrongPassphrase(anyhow::anyhow!("wrong passphrase"), "wrong passphrase".to_string())
+    Error::WrongPassphrase(
+        anyhow::anyhow!("wrong passphrase"),
+        "wrong passphrase".to_string(),
+    )
 }
 
 fn decrypt_key<R>(key: Key<SecretParts, R>, password: &Password) -> Result<Key<SecretParts, R>>
