@@ -70,6 +70,10 @@ fn illegal_value(str: &str) -> Error {
     Error::IllegalValue(str.to_string())
 }
 
+fn wrong_passphrase() -> Error {
+    Error::WrongPassphrase(anyhow::anyhow!("wrong passphrase"), "wrong passphrase".to_string())
+}
+
 fn decrypt_key<R>(key: Key<SecretParts, R>, password: &Password) -> Result<Key<SecretParts, R>>
 where
     R: KeyRole + Clone,
@@ -88,7 +92,7 @@ where
                 return Ok(key);
             }
 
-            Err(illegal_value("unable to decrypt secret key material"))
+            Err(wrong_passphrase())
         }
     }
 }
