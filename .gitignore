@@ -4,5 +4,6 @@
 pEpEngineSequoiaBackendProject.vcxproj.user
 x64
 build-win64/Debug
+build-win64/Release
 
 _build/
