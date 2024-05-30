@@ -60,9 +60,7 @@ ffi!(
         // Otherwise, you'll end up with secrets encrypted with the old key.
         session.keystore().cert_delete(fingerprint)?;
 
-        let _blarg = session
-            .keystore()
-            .cert_save(cert)?;
+        session.keystore().cert_save(cert)?;
 
         Ok(())
     }
