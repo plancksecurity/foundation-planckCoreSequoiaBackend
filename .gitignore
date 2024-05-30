@@ -3,5 +3,6 @@
 /local.conf
 pEpEngineSequoiaBackendProject.vcxproj.user
 x64
+build-win64/Debug
 
 _build/
