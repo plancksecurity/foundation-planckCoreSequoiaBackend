@@ -1,5 +1,7 @@
 use libc::c_char;
-use sequoia_openpgp::packet::key::{KeyRole, SecretKeyMaterial, SecretParts};
+use sequoia_openpgp::packet::key::{
+    KeyRole, PrimaryRole, SecretKeyMaterial, SecretParts, SubordinateRole,
+};
 use sequoia_openpgp::packet::Key;
 use sequoia_openpgp::{crypto::Password, Fingerprint};
 use sequoia_openpgp::{Cert, Packet};
@@ -99,6 +101,38 @@ where
             Err(wrong_passphrase())
         }
     }
+}
+
+fn _map_packets<
+    R: KeyRole + Clone,
+    F1: Fn(Key<SecretParts, PrimaryRole>) -> Key<SecretParts, PrimaryRole>,
+    F2: Fn(Key<SecretParts, SubordinateRole>) -> Key<SecretParts, SubordinateRole>,
+>(
+    cert: &Cert,
+    primary_fn: F1,
+    subordinate_fn: F2,
+) -> Result<Vec<Packet>> {
+    let primary_key = cert
+        .primary_key()
+        .key()
+        .clone()
+        .parts_into_secret()
+        .map_err(|_| illegal_value("primary key has no secret parts"))?;
+    let primary_key = primary_fn(primary_key);
+
+    let mut packets: Vec<Packet> = vec![primary_key.into()];
+
+    for key_amalgamation in cert.keys().subkeys().secret() {
+        let secondary_key = key_amalgamation
+            .key()
+            .clone()
+            .parts_into_secret()
+            .map_err(|_| illegal_value("secondary key has no secret parts"))?;
+        let secondary_key = subordinate_fn(secondary_key);
+        let secondary_packet: Packet = secondary_key.into();
+        packets.push(secondary_packet);
+    }
+    Ok(packets)
 }
 
 fn decrypted_packets(cert: &Cert, passphrase: &Password) -> Result<Vec<Packet>> {
