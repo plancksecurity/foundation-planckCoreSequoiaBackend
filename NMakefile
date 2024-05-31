@@ -28,8 +28,7 @@ CARGOFLAGS=--release
 build:
 	$(CARGO) rustc $(CARGOFLAGS) -- -L$(OUTPUT)
 	@echo Built $(TARGET)
-	DEL  $(OUTPUT)\pep_engine_sequoia_backend*
-	XCOPY $(TARGET_DIR)\pep_engine_sequoia_backend* $(OUTPUT) /q
+	XCOPY /Y $(TARGET_DIR)\pep_engine_sequoia_backend* $(OUTPUT)\
 
 clean:
 	IF EXIST target RD /s /q target
