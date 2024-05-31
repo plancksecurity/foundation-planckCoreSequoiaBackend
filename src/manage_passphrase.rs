@@ -144,28 +144,16 @@ fn decrypted_packets(cert: &Cert, passphrase: &Password) -> Result<Vec<Packet>> 
 }
 
 fn encrypted_packets(cert: &Cert, passphrase: &Password) -> Result<Vec<Packet>> {
-    let pk_packet: Packet = cert
-        .primary_key()
-        .key()
-        .clone()
-        .parts_into_secret()
-        .map_err(|_| illegal_value("primary key has no secret parts"))?
-        .encrypt_secret(&passphrase)
-        .map_err(|_| illegal_value("cannot encrypt primary key"))?
-        .into();
-    let mut encrypted_packets: Vec<Packet> = vec![pk_packet];
-
-    for key_amalgamation in cert.keys().subkeys().unencrypted_secret() {
-        let secondary_packet: Packet = key_amalgamation
-            .key()
-            .clone()
-            .parts_into_secret()
-            .map_err(|_| illegal_value("unencrypted secondary key has no secret parts"))?
-            .encrypt_secret(&passphrase)
-            .map_err(|_| illegal_value("cannot encrypt secondary key"))?
-            .into();
-        encrypted_packets.push(secondary_packet);
-    }
-
-    Ok(encrypted_packets)
+    let packets = map_packets(
+        cert,
+        |k| {
+            k.encrypt_secret(passphrase)
+                .map_err(|_| illegal_value("cannot encrypt primary key"))
+        },
+        |k| {
+            k.encrypt_secret(passphrase)
+                .map_err(|_| illegal_value("cannot encrypt primary key"))
+        },
+    )?;
+    Ok(packets)
 }
