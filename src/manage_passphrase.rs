@@ -103,10 +103,9 @@ where
     }
 }
 
-fn _map_packets<
-    R: KeyRole + Clone,
-    F1: Fn(Key<SecretParts, PrimaryRole>) -> Key<SecretParts, PrimaryRole>,
-    F2: Fn(Key<SecretParts, SubordinateRole>) -> Key<SecretParts, SubordinateRole>,
+fn map_packets<
+    F1: Fn(Key<SecretParts, PrimaryRole>) -> Result<Key<SecretParts, PrimaryRole>>,
+    F2: Fn(Key<SecretParts, SubordinateRole>) -> Result<Key<SecretParts, SubordinateRole>>,
 >(
     cert: &Cert,
     primary_fn: F1,
@@ -118,7 +117,7 @@ fn _map_packets<
         .clone()
         .parts_into_secret()
         .map_err(|_| illegal_value("primary key has no secret parts"))?;
-    let primary_key = primary_fn(primary_key);
+    let primary_key = primary_fn(primary_key)?;
 
     let mut packets: Vec<Packet> = vec![primary_key.into()];
 
@@ -128,7 +127,7 @@ fn _map_packets<
             .clone()
             .parts_into_secret()
             .map_err(|_| illegal_value("secondary key has no secret parts"))?;
-        let secondary_key = subordinate_fn(secondary_key);
+        let secondary_key = subordinate_fn(secondary_key)?;
         let secondary_packet: Packet = secondary_key.into();
         packets.push(secondary_packet);
     }
@@ -136,27 +135,12 @@ fn _map_packets<
 }
 
 fn decrypted_packets(cert: &Cert, passphrase: &Password) -> Result<Vec<Packet>> {
-    let primary_key = cert
-        .primary_key()
-        .key()
-        .clone()
-        .parts_into_secret()
-        .map_err(|_| illegal_value("primary key has no secret parts"))?;
-
-    let pk_packet: Packet = decrypt_key(primary_key, &passphrase)?.into();
-    let mut decrypted_packets: Vec<Packet> = vec![pk_packet];
-
-    for key_amalgamation in cert.keys().subkeys().secret() {
-        let secondary_key = key_amalgamation
-            .key()
-            .clone()
-            .parts_into_secret()
-            .map_err(|_| illegal_value("secondary key has no secret parts"))?;
-        let secondary_packet: Packet = decrypt_key(secondary_key, &passphrase)?.into();
-        decrypted_packets.push(secondary_packet);
-    }
-
-    Ok(decrypted_packets)
+    let packets = map_packets(
+        cert,
+        |k| decrypt_key(k, passphrase),
+        |k| decrypt_key(k, passphrase),
+    )?;
+    Ok(packets)
 }
 
 fn encrypted_packets(cert: &Cert, passphrase: &Password) -> Result<Vec<Packet>> {
