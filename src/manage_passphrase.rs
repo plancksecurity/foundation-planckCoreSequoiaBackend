@@ -103,6 +103,57 @@ where
     }
 }
 
+enum _KeyWithRole {
+    Primary(Key<SecretParts, PrimaryRole>),
+    Subordinate(Key<SecretParts, SubordinateRole>),
+}
+
+fn _secret_keys(cert: &Cert) -> Result<Vec<_KeyWithRole>> {
+    let primary_key = cert
+        .primary_key()
+        .key()
+        .clone()
+        .parts_into_secret()
+        .map_err(|_| illegal_value("primary key has no secret parts"))?;
+
+    let mut keys = vec![_KeyWithRole::Primary(primary_key)];
+
+    for key_amalgamation in cert.keys().subkeys().secret() {
+        let secondary_key = key_amalgamation
+            .key()
+            .clone()
+            .parts_into_secret()
+            .map_err(|_| illegal_value("secondary key has no secret parts"))?;
+        keys.push(_KeyWithRole::Subordinate(secondary_key));
+    }
+
+    Ok(keys)
+}
+
+fn decrypted_packets(cert: &Cert, passphrase: &Password) -> Result<Vec<Packet>> {
+    let packets = map_packets(
+        cert,
+        |k| decrypt_key(k, passphrase),
+        |k| decrypt_key(k, passphrase),
+    )?;
+    Ok(packets)
+}
+
+fn encrypted_packets(cert: &Cert, passphrase: &Password) -> Result<Vec<Packet>> {
+    let packets = map_packets(
+        cert,
+        |k| {
+            k.encrypt_secret(passphrase)
+                .map_err(|_| illegal_value("cannot encrypt primary key"))
+        },
+        |k| {
+            k.encrypt_secret(passphrase)
+                .map_err(|_| illegal_value("cannot encrypt primary key"))
+        },
+    )?;
+    Ok(packets)
+}
+
 fn map_packets<
     F1: Fn(Key<SecretParts, PrimaryRole>) -> Result<Key<SecretParts, PrimaryRole>>,
     F2: Fn(Key<SecretParts, SubordinateRole>) -> Result<Key<SecretParts, SubordinateRole>>,
@@ -131,29 +182,5 @@ fn map_packets<
         let secondary_packet: Packet = secondary_key.into();
         packets.push(secondary_packet);
     }
-    Ok(packets)
-}
-
-fn decrypted_packets(cert: &Cert, passphrase: &Password) -> Result<Vec<Packet>> {
-    let packets = map_packets(
-        cert,
-        |k| decrypt_key(k, passphrase),
-        |k| decrypt_key(k, passphrase),
-    )?;
-    Ok(packets)
-}
-
-fn encrypted_packets(cert: &Cert, passphrase: &Password) -> Result<Vec<Packet>> {
-    let packets = map_packets(
-        cert,
-        |k| {
-            k.encrypt_secret(passphrase)
-                .map_err(|_| illegal_value("cannot encrypt primary key"))
-        },
-        |k| {
-            k.encrypt_secret(passphrase)
-                .map_err(|_| illegal_value("cannot encrypt primary key"))
-        },
-    )?;
     Ok(packets)
 }
