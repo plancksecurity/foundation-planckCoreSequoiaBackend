@@ -37,13 +37,13 @@ ffi!(
             .to_str()
             .map_err(|_| illegal_value("new passphrase cannot be converted to string"))?;
 
-        let remove_passphrase = { new_passphrase.is_empty() };
+        let remove_passphrase = new_passphrase.is_empty();
 
         let new_passphrase = Password::from(new_passphrase);
         let old_passphrase = unsafe { check_cstr!(old_passphrase) }
             .to_str()
             .map_err(|_| illegal_value("passphrase cannot be converted to string"))
-            .map(|s| Password::from(s))?;
+            .map(Password::from)?;
 
         let decrypted_packets = decrypted_packets(&cert, &old_passphrase)?;
 
@@ -94,11 +94,9 @@ where
                 return Err(illegal_value("unsupported key protection"));
             }
 
-            if let Ok(key) = key.clone().decrypt_secret(password) {
-                return Ok(key);
-            }
-
-            Err(wrong_passphrase())
+            key.clone()
+                .decrypt_secret(password)
+                .map_err(|_| wrong_passphrase())
         }
     }
 }
@@ -143,7 +141,7 @@ fn map_packets<
         .map_err(|_| illegal_value("primary key has no secret parts"))?;
     let primary_key = primary_fn(primary_key)?;
 
-    let mut packets: Vec<Packet> = vec![primary_key.into()];
+    let mut packets = vec![primary_key.into()];
 
     for key_amalgamation in cert.keys().subkeys().secret() {
         let secondary_key = key_amalgamation
@@ -152,7 +150,7 @@ fn map_packets<
             .parts_into_secret()
             .map_err(|_| illegal_value("secondary key has no secret parts"))?;
         let secondary_key = subordinate_fn(secondary_key)?;
-        let secondary_packet: Packet = secondary_key.into();
+        let secondary_packet = secondary_key.into();
         packets.push(secondary_packet);
     }
     Ok(packets)
