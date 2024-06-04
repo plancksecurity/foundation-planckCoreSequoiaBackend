@@ -57,9 +57,9 @@ PKGCONFIG_DIR=$(PREFIX)/share/pkgconfig/
 CARGO_FLAGS+=$(VARIANT_FLAGS)
 
 ifneq ($(filter Darwin %BSD,$(shell uname -s)),)
-    INSTALL?=ginstall
-else
     INSTALL?=install
+else
+    INSTALL?=ginstall
 endif
 
 .PHONY: all build install uninstall test clean
