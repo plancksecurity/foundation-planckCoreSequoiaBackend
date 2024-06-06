@@ -1,9 +1,7 @@
 use std::cmp;
 use std::convert::TryInto;
 use std::env;
-use std::ffi::{
-    CStr,
-};
+use std::ffi::CStr;
 use std::io::{
     Read,
     Write,
@@ -122,6 +120,7 @@ use buffer::{
     rust_bytes_to_ptr_and_len,
 };
 
+mod manage_passphrase;
 
 // If the PEP_TRACE environment variable is set or we are built in
 // debug mode, then enable tracing.
