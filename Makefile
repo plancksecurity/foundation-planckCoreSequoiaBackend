@@ -66,7 +66,7 @@ build:
 
 install: build
 	mkdir -p $(LIB_DIR) $(PKGCONFIG_DIR)
-	$(INSTALL) $(LIB_DYNAMIC_PATH) $(LIB_DIR)
+	if [ -f $(LIB_DYNAMIC_PATH) ]; then $(INSTALL) $(LIB_DYNAMIC_PATH) $(LIB_DIR); fi
 	$(INSTALL) $(LIB_STATIC_PATH) $(LIB_DIR)
 	$(INSTALL) $(PKGCONFIG_PATH) $(PKGCONFIG_DIR)
 
