@@ -106,6 +106,9 @@ use pep::{
     Session,
     StringList,
     StringListItem,
+    StringPairList,
+    StringPairListItem,
+    StringPair,
     Timestamp,
 };
 #[macro_use] mod ffi;
@@ -1280,7 +1283,7 @@ ffi!(fn _pgp_generate_keypair(session: *mut Session,
     let password = if is_group_identity {
         None
     } else if session.new_key_pass_enabled() {
-        if let Some(password) = session.generation_passphrase() {
+        if let Some(password) = session.find_passphrase_c(identity.address) {
             Some(password)
         } else {
             return Err(Error::PassphraseForNewKeysRequired);

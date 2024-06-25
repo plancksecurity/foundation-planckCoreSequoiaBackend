@@ -12,6 +12,7 @@ use crate::Keystore;
 use crate::PepCipherSuite;
 use crate::Result;
 use crate::ffi::MM;
+use crate::pep::StringPairList;
 
 const MAGIC: u64 = 0xE3F3_05AD_48EE_0DF5;
 
@@ -38,7 +39,7 @@ impl State {
     ///
     /// Takes ownership of the object.
     pub fn to_rust(ptr: *mut Self) -> Box<Self> {
-        assert!(! ptr.is_null());
+        assert!(!ptr.is_null());
         let s = unsafe { Box::from_raw(ptr) };
         assert_eq!(s.magic, MAGIC, "magic");
 
@@ -57,9 +58,8 @@ impl State {
 pub struct Session {
     pub version: *const u8,
     pub state: *mut State,
-    pub curr_passphrase: *const c_char,
+    pub curr_passphrases: *mut StringPairList,
     pub new_key_pass_enabled: bool,
-    pub generation_passphrase: *const c_char,
     pub cipher_suite: PepCipherSuite,
 }
 
@@ -80,9 +80,8 @@ impl Session {
                 },
                 magic: MAGIC,
             })),
-            curr_passphrase: ptr::null(),
+            curr_passphrases: ptr::null_mut(),
             new_key_pass_enabled: false,
-            generation_passphrase: ptr::null(),
             cipher_suite: PepCipherSuite::Default,
         }))
     }
@@ -94,15 +93,26 @@ impl Session {
         assert!(self.state.is_null());
 
         self.state = Box::into_raw(Box::new(State {
-            ks: ks,
+            ks,
             mm,
             magic: MAGIC,
         }));
+
+        // Initialize curr_passphrases
+        self.curr_passphrases = Box::into_raw(Box::new(StringPairList::empty(mm)));
     }
 
     pub fn deinit(&mut self) {
         let _ = State::to_rust(self.state);
         self.state = ptr::null_mut();
+
+        // Deinitialize curr_passphrases
+        if !self.curr_passphrases.is_null() {
+            unsafe {
+                let _ = Box::from_raw(self.curr_passphrases);
+            }
+            self.curr_passphrases = ptr::null_mut();
+        }
     }
 
     /// Converts the raw pointer to a Rust reference.
@@ -130,39 +140,65 @@ impl Session {
         State::as_mut(self.state).mm
     }
 
-    /// Returns the value of curr_passphrase.
-    pub fn curr_passphrase(&self) -> Option<Password> {
-        unsafe {
-            self.curr_passphrase.as_ref().and_then(|ptr| {
-                let bytes = CStr::from_ptr(ptr).to_bytes();
-                // A zero-length password is not a password.
-                if bytes.len() == 0 {
-                    None
-                } else {
-                    Some(Password::from(bytes))
-                }
-            })
+    /// Adds a new passphrase to curr_passphrases.
+    pub fn add_passphrase(&mut self, key: &str, passphrase: &str) {
+        if self.curr_passphrases.is_null() {
+            self.curr_passphrases = Box::into_raw(Box::new(StringPairList::empty(self.mm())));
+        }
+
+        let list = unsafe { &mut *self.curr_passphrases };
+        list.add(key, passphrase);
+    }
+
+    /// Finds a passphrase by key in curr_passphrases.
+    pub fn find_passphrase(&self, search_key: &str) -> Option<String> {
+        if self.curr_passphrases.is_null() {
+            return None;
+        }
+
+        let list = unsafe { &*self.curr_passphrases };
+        for (key, value) in list.iter() {
+            if key.to_str().unwrap() == search_key {
+                return Some(value.to_str().unwrap().to_string());
+            }
+        }
+        None
+    }
+
+    /// Finds a passphrase by key in curr_passphrases.
+    pub fn find_passphrase_c(&self, search_key: *const c_char) -> Option<String> {
+        if self.curr_passphrases.is_null() || search_key.is_null() {
+            return None;
+        }
+
+        // Convert the C string to a Rust string slice
+        let search_key = unsafe {
+            CStr::from_ptr(search_key)
+                .to_str()
+                .expect("Invalid UTF-8 string")
+        };
+
+        let list = unsafe { &*self.curr_passphrases };
+        for (key, value) in list.iter() {
+            if key.to_str().unwrap() == search_key {
+                return Some(value.to_str().unwrap().to_string());
+            }
+        }
+        None
+    }
+
+    /// Returns an iterator over the current passphrases.
+    pub fn curr_passphrases(&self) -> Option<impl Iterator<Item = (&CStr, &CStr)>> {
+        if self.curr_passphrases.is_null() {
+            None
+        } else {
+            Some(unsafe { &*self.curr_passphrases }.iter())
         }
     }
 
     /// Returns the value of new_key_pass_enabled.
     pub fn new_key_pass_enabled(&self) -> bool {
         self.new_key_pass_enabled
-    }
-
-    /// Returns the value of generation_passphrase.
-    pub fn generation_passphrase(&self) -> Option<Password> {
-        unsafe {
-            self.generation_passphrase.as_ref().and_then(|ptr| {
-                let bytes = CStr::from_ptr(ptr).to_bytes();
-                // A zero-length password is not a password.
-                if bytes.len() == 0 {
-                    None
-                } else {
-                    Some(Password::from(bytes))
-                }
-            })
-        }
     }
 
     /// Returns the value of cipher_suite.
@@ -173,7 +209,7 @@ impl Session {
     /// Sets the value of cipher suite.
     ///
     /// If suite is known and supported, this function returns
-    /// success.  If suite is not known or not supported, then this
+    /// success. If suite is not known or not supported, then this
     /// sets the cipher suite to the default!
     pub fn set_cipher_suite(&mut self, suite: PepCipherSuite) -> Result<()> {
         let sq_suite: Result<openpgp::cert::CipherSuite> = suite.try_into();
@@ -217,5 +253,30 @@ mod tests {
         }
 
         unsafe { let _ = Box::from_raw(session); };
+    }
+
+    #[test]
+    fn add_and_iter_passphrases() {
+        let mm = MM { malloc: libc::malloc, free: libc::free };
+        let mut session = Session {
+            version: ptr::null(),
+            state: Box::into_raw(Box::new(State {
+                ks: Keystore::init_in_memory().unwrap(),
+                mm,
+                magic: MAGIC,
+            })),
+            curr_passphrases: ptr::null_mut(),
+            cipher_suite: PepCipherSuite::Default,
+        };
+
+        session.add_passphrase("key1", "passphrase1");
+        session.add_passphrase("key2", "passphrase2");
+
+        let passphrases: Vec<(&CStr, &CStr)> = session.curr_passphrases().unwrap().collect();
+        assert_eq!(passphrases.len(), 2);
+        assert_eq!(passphrases[0].0.to_str().unwrap(), "key1");
+        assert_eq!(passphrases[0].1.to_str().unwrap(), "passphrase1");
+        assert_eq!(passphrases[1].0.to_str().unwrap(), "key2");
+        assert_eq!(passphrases[1].1.to_str().unwrap(), "passphrase2");
     }
 }

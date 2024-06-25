@@ -23,6 +23,13 @@ pub use stringlist::{
     StringList,
 };
 
+mod stringpairlist;
+pub use stringpairlist::{
+    StringPair,
+    StringPairListItem,
+    StringPairList,
+};
+
 // Transforms an error from some error type to the pep::Error.
 macro_rules! wrap_err {
     ($e:expr, $err:ident, $msg:expr) => {
