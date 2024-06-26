@@ -107,6 +107,9 @@ use pep::{
     StringList,
     StringListItem,
     Timestamp,
+    StringPair,
+    StringPairList,
+    StringPairListItem,
 };
 #[macro_use] mod ffi;
 use ffi::MM;
@@ -248,8 +251,8 @@ ffi!(fn pgp_init_(session: *mut Session, _in_first: bool,
                   pep_identity_size: c_uint,
                   pep_identity_list_item_size: c_uint,
                   timestamp_size: c_uint,
-                  _stringpair_size: c_uint,
-                  _stringpair_list_size: c_uint,
+                  stringpair_size: c_uint,
+                  stringpair_list_item_size: c_uint,
                   magic: c_uint)
     -> Result<()>
 {
@@ -289,10 +292,10 @@ ffi!(fn pgp_init_(session: *mut Session, _in_first: bool,
                "pep_identity_list_item_size");
     assert_eq!(timestamp_size as usize, size_of::<Timestamp>(),
                "timestamp_size");
-    // assert_eq!(stringpair_size as usize, size_of::<StringPair>(),
-    //            "stringpair_size");
-    // assert_eq!(stringpair_list_size as usize, size_of::<StringPairList>(),
-    //            "stringpair_list_size");
+     assert_eq!(stringpair_size as usize, size_of::<StringPair>(),
+                "stringpair_size");
+     assert_eq!(stringpair_list_item_size as usize, size_of::<StringPairListItem>(),
+                "stringpair_list_item_size");
 
     let session = Session::as_mut(session)?;
 
