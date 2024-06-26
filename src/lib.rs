@@ -1,7 +1,7 @@
 use std::cmp;
 use std::convert::TryInto;
 use std::env;
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 use std::io::{
     Read,
     Write,
@@ -106,9 +106,6 @@ use pep::{
     Session,
     StringList,
     StringListItem,
-    StringPairList,
-    StringPairListItem,
-    StringPair,
     Timestamp,
 };
 #[macro_use] mod ffi;
@@ -239,9 +236,8 @@ ffi!(fn pgp_init_(session: *mut Session, _in_first: bool,
                   free: ffi::Free,
                   session_size: c_uint,
                   session_cookie_offset: c_uint,
-                  session_curr_passphrase_offset: c_uint,
+                  session_curr_passphrases_offset: c_uint,
                   session_new_key_pass_enable: c_uint,
-                  session_generation_passphrase_offset: c_uint,
                   session_cipher_suite_offset: c_uint,
                   pep_status_size: c_uint,
                   pep_comm_type_size: c_uint,
@@ -266,15 +262,12 @@ ffi!(fn pgp_init_(session: *mut Session, _in_first: bool,
     assert_eq!(session_cookie_offset as usize,
                offset_of!(Session, state),
                "session_cookie_offset");
-    assert_eq!(session_curr_passphrase_offset as usize,
-               offset_of!(Session, curr_passphrase),
+    assert_eq!(session_curr_passphrases_offset as usize,
+               offset_of!(Session, curr_passphrases),
                "session_curr_passphrase_offset");
     assert_eq!(session_new_key_pass_enable as usize,
                offset_of!(Session, new_key_pass_enabled),
                "session_new_key_pass_enable");
-    assert_eq!(session_generation_passphrase_offset as usize,
-               offset_of!(Session, generation_passphrase),
-               "session_generation_passphrase_offset");
     assert_eq!(session_cipher_suite_offset as usize,
                offset_of!(Session, cipher_suite),
                "session_cipher_suite_offset");
@@ -556,7 +549,13 @@ impl<'a> DecryptionHelper for &mut Helper<'a> {
     {
         trace!("Helper::decrypt");
 
-        let password = self.session.curr_passphrase();
+        // SEEMS TROUBLESOME, HOW COULD WE PASS HERE THE EMAIL FOR THE IDENTITY??
+        let email = "EMAIL, WHAT EMAIL...?";
+// Convert &str to CString
+        let c_email = CString::new(email).expect("CString::new failed");
+
+// Pass the raw pointer to find_passphrase_c
+        let password = self.session.find_passphrase_c(c_email.as_ptr());
         let keystore = self.session.keystore();
 
         // Whether there are any wildcard recipients.
@@ -1038,6 +1037,7 @@ ffi!(fn pgp_verify_text(session: *mut Session,
 //     size_t psize, char **stext, size_t *ssize)
 ffi!(fn pgp_sign_only(
     session: *mut Session,
+    email: *const c_char,
     fpr: *const c_char,
     ptext: *const c_char, psize: size_t,
     stextp: *mut *mut c_char, ssizep: *mut size_t)
@@ -1054,7 +1054,7 @@ ffi!(fn pgp_sign_only(
     let ssizep = unsafe {  check_mut!(ssizep) };
     *ssizep = 0;
 
-    let password = session.curr_passphrase();
+    let password = session.find_passphrase_c(email);
     let keystore = session.keystore();
 
 
@@ -1108,6 +1108,7 @@ ffi!(fn pgp_sign_only(
 
 fn pgp_encrypt_sign_optional(
     session: *mut Session,
+    email: *const c_char,
     keylist: *mut StringListItem,
     ptext: *const c_char, psize: size_t,
     ctextp: *mut *mut c_char, csizep: *mut size_t,
@@ -1126,7 +1127,7 @@ fn pgp_encrypt_sign_optional(
     let csizep = unsafe {  check_mut!(csizep) };
     *csizep = 0;
 
-    let password = session.curr_passphrase();
+    let password = session.find_passphrase_c(email);
     let keystore = session.keystore();
 
 
@@ -1241,26 +1242,28 @@ fn pgp_encrypt_sign_optional(
 //     PEP_SESSION session, const stringlist_t *keylist, const char *ptext,
 //     size_t psize, char **ctext, size_t *csize)
 ffi!(fn pgp_encrypt_only(session: *mut Session,
+                        email: *const c_char,
                          keylist: *mut StringListItem,
                          ptext: *const c_char, psize: size_t,
                          ctextp: *mut *mut c_char, csizep: *mut size_t)
     -> Result<()>
 {
     pgp_encrypt_sign_optional(
-        session, keylist, ptext, psize, ctextp, csizep, false)
+        session, email, keylist, ptext, psize, ctextp, csizep, false)
 });
 
 // PEP_STATUS pgp_encrypt_and_sign(
 //     PEP_SESSION session, const stringlist_t *keylist, const char *ptext,
 //     size_t psize, char **ctext, size_t *csize)
 ffi!(fn pgp_encrypt_and_sign(session: *mut Session,
+    email: *const c_char,
                              keylist: *mut StringListItem,
                              ptext: *const c_char, psize: size_t,
                              ctextp: *mut *mut c_char, csizep: *mut size_t)
     -> Result<()>
 {
     pgp_encrypt_sign_optional(
-        session, keylist, ptext, psize, ctextp, csizep, true)
+        session, email, keylist, ptext, psize, ctextp, csizep, true)
 });
 
 // PEP_STATUS _pgp_generate_keypair(PEP_SESSION session, pEp_identity *identity, time_t when)
@@ -1842,8 +1845,9 @@ ffi!(fn pgp_find_private_keys(session: *mut Session,
 stub!(pgp_send_key);
 
 // PEP_STATUS pgp_renew_key(
-//     PEP_SESSION session, const char *fpr, const timestamp *ts)
+//     PEP_SESSION session, const char *email, const char *fpr, const timestamp *ts)
 ffi!(fn pgp_renew_key(session: *mut Session,
+                      email: *const c_char,
                       fpr: *const c_char,
                       expiration: *const Timestamp)
     -> Result<()>
@@ -1853,7 +1857,7 @@ ffi!(fn pgp_renew_key(session: *mut Session,
     let fpr = unsafe { check_fpr!(fpr) };
     let expiration = unsafe { check_ptr!(expiration) };
 
-    let password = session.curr_passphrase();
+    let password = session.find_passphrase_c(email);
     let keystore = session.keystore();
 
     let expiration = Utc
@@ -1955,6 +1959,7 @@ ffi!(fn pgp_renew_key(session: *mut Session,
 // PEP_STATUS pgp_revoke_key(
 //     PEP_SESSION session, const char *fpr, const char *reason)
 ffi!(fn pgp_revoke_key(session: *mut Session,
+                       email: *const c_char,
                        fpr: *const c_char,
                        reason: *const c_char)
     -> Result<()>
@@ -1968,7 +1973,7 @@ ffi!(fn pgp_revoke_key(session: *mut Session,
             .unwrap_or(b"")
     };
 
-    let password = session.curr_passphrase();
+    let password = session.find_passphrase_c(email);
     let keystore = session.keystore();
 
 

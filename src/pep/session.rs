@@ -151,7 +151,7 @@ impl Session {
     }
 
     /// Finds a passphrase by key in curr_passphrases.
-    pub fn find_passphrase(&self, search_key: &str) -> Option<String> {
+    pub fn find_passphrase(&self, search_key: &str) -> Option<Password> {
         if self.curr_passphrases.is_null() {
             return None;
         }
@@ -159,14 +159,15 @@ impl Session {
         let list = unsafe { &*self.curr_passphrases };
         for (key, value) in list.iter() {
             if key.to_str().unwrap() == search_key {
-                return Some(value.to_str().unwrap().to_string());
+                let value_bytes = value.to_str().unwrap().as_bytes();
+                return Some(Password::from(value_bytes));
             }
         }
         None
     }
 
     /// Finds a passphrase by key in curr_passphrases.
-    pub fn find_passphrase_c(&self, search_key: *const c_char) -> Option<String> {
+    pub fn find_passphrase_c(&self, search_key: *const c_char) -> Option<Password> {
         if self.curr_passphrases.is_null() || search_key.is_null() {
             return None;
         }
@@ -181,7 +182,8 @@ impl Session {
         let list = unsafe { &*self.curr_passphrases };
         for (key, value) in list.iter() {
             if key.to_str().unwrap() == search_key {
-                return Some(value.to_str().unwrap().to_string());
+                let value_bytes = value.to_str().unwrap().as_bytes();
+                return Some(Password::from(value_bytes));
             }
         }
         None

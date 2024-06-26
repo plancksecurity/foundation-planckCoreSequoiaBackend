@@ -166,18 +166,21 @@ impl StringPairList {
     }
 
     fn add_<S: AsRef<str>>(&mut self, key: S, value: S, dedup: bool) {
-        let mm = self.mm;
         let key = key.as_ref();
         let value = value.as_ref();
 
-        // See if the key already exists in the string pair list.
         let mut iter = self.iter_mut();
-        for (k, v) in &mut iter {
+        while let Some((k, v)) = iter.next() {
             if dedup && k.to_bytes() == key.as_bytes() {
-                // Update the value if deduplication is required and key already exists.
-                unsafe {
-                    libc::free(v.as_ptr() as *mut _);
-                    *v = CString::new(value).unwrap().into_raw();
+                if v.to_bytes() != value.as_bytes() {
+                    // Update the value if deduplication is required and key already exists.
+                    let itemp = iter.item();
+                    if !(*itemp).is_null() {
+                        let item: &mut StringPairListItem
+                            = StringPairListItem::as_mut(*itemp).expect("just checked");
+                        let pair = unsafe { item.pair.as_mut().unwrap() };
+                        pair.value = v.as_ptr().cast_mut();
+                    }
                 }
                 return;
             }
@@ -185,19 +188,19 @@ impl StringPairList {
 
         // It's not present yet. Add it.
         let itemp = iter.item();
-        if (*itemp).is_null() {
+        if itemp.is_null() {
             // 1. head is NULL (this is the case if item is NULL).
-            *itemp = StringPairListItem::new(mm, key, value, ptr::null_mut());
+            self.head = StringPairListItem::new(self.mm, key, value, ptr::null_mut());
         } else {
-            let item: &mut StringPairListItem = StringPairListItem::as_mut(*itemp).expect("just checked");
+            let item = unsafe { itemp.as_mut().unwrap() };
 
             if item.pair.is_null() {
                 // 2. head is not NULL, but head.pair is NULL.
-                item.pair = StringPair::new(mm, key, value);
+                item.pair = StringPair::new(self.mm, key, value);
             } else {
                 // 3. neither head nor head.pair are NULL.
                 assert!(item.next.is_null());
-                item.next = StringPairListItem::new(mm, key, value, ptr::null_mut());
+                item.next = StringPairListItem::new(self.mm, key, value, ptr::null_mut());
             }
         }
     }
@@ -299,16 +302,36 @@ impl<'a> StringPairListIterMut<'a> {
 impl<'a> Iterator for StringPairListIterMut<'a> {
     type Item = (&'a mut CString, &'a mut CString);
 
+//    fn next(&mut self) -> Option<Self::Item> {
+//        if let Some(item) = StringPairListItem::as_mut(*self.item) {
+//            if item.pair.is_null() {
+//                None
+//            } else {
+//                self.item = &mut item.next;
+//                let pair = unsafe { StringPair::as_mut(item.pair).unwrap() };
+//                Some((
+//                         //pair.key.as_ptr().cast_mut(),
+//                         //pair.value.as_ptr().cast_mut(),
+//
+//                    &mut unsafe { CString::from_raw(pair.key) },
+//                    &mut unsafe { CString::from_raw(pair.value) },
+//                ))
+//            }
+//        } else {
+//            None
+//        }
+//    }
+
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(item) = StringPairListItem::as_mut(*self.item) {
             if item.pair.is_null() {
                 None
             } else {
                 self.item = &mut item.next;
-                let pair = unsafe { StringPair::as_mut(item.pair).unwrap() };
+                let pair = unsafe { item.pair.as_mut().unwrap() };
                 Some((
-                    unsafe { CString::from_raw(pair.key) },
-                    unsafe { CString::from_raw(pair.value) },
+                    unsafe { &mut *pair.key.cast::<CString>() },
+                    unsafe { &mut *pair.value.cast::<CString>() },
                 ))
             }
         } else {
@@ -383,7 +406,7 @@ mod tests {
         let mm = MM { malloc: libc::malloc, free: libc::free };
 
         for variant in 0..3 {
-            let (mut list, mut v) = match variant {
+            let (mut list, mut expected) = match variant {
                 0 => {
                     let list = StringPairList::new(mm, "key1", "value1");
                     assert_eq!(list.len(), 1);
@@ -400,15 +423,14 @@ mod tests {
 
             let mut add_one = |k: String, v: String| {
                 list.add(&k, &v);
-                v.push((k, v));
+                expected.push((k, v));
 
-                assert_eq!(list.len(), v.len());
-                assert_eq!(
-                    &list
-                        .iter()
-                        .map(|(k, v)| (String::from(k.to_str().unwrap()), String::from(v.to_str().unwrap())))
-                        .collect::<Vec<(String, String)>>(),
-                    &v);
+                assert_eq!(list.len(), expected.len());
+                let actual: Vec<(String, String)> = list
+                    .iter()
+                    .map(|(k, v)| (k.to_str().unwrap().to_string(), v.to_str().unwrap().to_string()))
+                    .collect();
+                assert_eq!(&actual, &expected);
             };
 
             for i in 1..100 {
@@ -417,12 +439,13 @@ mod tests {
         }
     }
 
+
     #[test]
     fn add_unique() {
         let mm = MM { malloc: libc::malloc, free: libc::free };
 
         for variant in 0..3 {
-            let (mut list, mut v) = match variant {
+            let (mut list, mut expected) = match variant {
                 0 => {
                     let list = StringPairList::new(mm, "key1", "value1");
                     assert_eq!(list.len(), 1);
@@ -440,17 +463,16 @@ mod tests {
             let mut add_one = |k: String, v: String| {
                 list.add_unique(&k, &v);
                 // Add adds to the back.
-                if v.iter().find(|(key, _)| key == &k).is_none() {
-                    v.push((k, v));
+                if expected.iter().find(|(key, _)| key == &k).is_none() {
+                    expected.push((k, v));
                 }
 
-                assert_eq!(list.len(), v.len());
-                assert_eq!(
-                    &list
-                        .iter()
-                        .map(|(k, v)| (String::from(k.to_str().unwrap()), String::from(v.to_str().unwrap())))
-                        .collect::<Vec<(String, String)>>(),
-                    &v);
+                assert_eq!(list.len(), expected.len());
+                let actual: Vec<(String, String)> = list
+                    .iter()
+                    .map(|(k, v)| (String::from(k.to_str().unwrap()), String::from(v.to_str().unwrap())))
+                    .collect();
+                assert_eq!(&actual, &expected);
             };
 
             for i in 1..13 {
