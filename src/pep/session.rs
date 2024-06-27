@@ -1,18 +1,19 @@
 use std::ptr;
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 use std::convert::TryInto;
 
 use libc::c_char;
 
 use sequoia_openpgp as openpgp;
 use openpgp::crypto::Password;
+use crate::buffer::rust_str_to_c_str;
 
 use crate::Error;
 use crate::Keystore;
 use crate::PepCipherSuite;
 use crate::Result;
 use crate::ffi::MM;
-use crate::pep::StringPairList;
+use crate::pep::StringPairListItem;
 
 const MAGIC: u64 = 0xE3F3_05AD_48EE_0DF5;
 
@@ -58,7 +59,7 @@ impl State {
 pub struct Session {
     pub version: *const u8,
     pub state: *mut State,
-    pub curr_passphrases: *mut StringPairList,
+    pub curr_passphrases: *mut StringPairListItem,
     pub new_key_pass_enabled: bool,
     pub cipher_suite: PepCipherSuite,
 }
@@ -99,7 +100,7 @@ impl Session {
         }));
 
         // Initialize curr_passphrases
-        self.curr_passphrases = Box::into_raw(Box::new(StringPairList::empty(mm)));
+        self.curr_passphrases = StringPairListItem::empty(mm);
     }
 
     pub fn deinit(&mut self) {
@@ -109,7 +110,19 @@ impl Session {
         // Deinitialize curr_passphrases
         if !self.curr_passphrases.is_null() {
             unsafe {
-                let _ = Box::from_raw(self.curr_passphrases);
+                let mut current = self.curr_passphrases;
+                while !current.is_null() {
+                    let next = (*current).next;
+                    if !(*current).value.is_null() {
+                        let pair = Box::from_raw((*current).value);
+                        //rust_str_to_c_str(self.mm(), pair.key);
+                        //rust_str_to_c_str(self.mm(), pair.value);
+                        let _ = CString::from_raw(pair.key);
+                        let __ = CString::from_raw(pair.value);
+                    }
+                    libc::free(current as *mut libc::c_void);
+                    current = next;
+                }
             }
             self.curr_passphrases = ptr::null_mut();
         }
@@ -143,11 +156,11 @@ impl Session {
     /// Adds a new passphrase to curr_passphrases.
     pub fn add_passphrase(&mut self, key: &str, passphrase: &str) {
         if self.curr_passphrases.is_null() {
-            self.curr_passphrases = Box::into_raw(Box::new(StringPairList::empty(self.mm())));
+            self.curr_passphrases = StringPairListItem::empty(self.mm());
         }
 
         let list = unsafe { &mut *self.curr_passphrases };
-        list.add(key, passphrase);
+        list.add(self.mm(), key, passphrase);
     }
 
     /// Finds a passphrase by key in curr_passphrases.
@@ -268,6 +281,7 @@ mod tests {
                 magic: MAGIC,
             })),
             curr_passphrases: ptr::null_mut(),
+            new_key_pass_enabled: true,
             cipher_suite: PepCipherSuite::Default,
         };
 

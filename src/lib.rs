@@ -108,7 +108,6 @@ use pep::{
     StringListItem,
     Timestamp,
     StringPair,
-    StringPairList,
     StringPairListItem,
 };
 #[macro_use] mod ffi;

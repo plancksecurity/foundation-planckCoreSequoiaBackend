@@ -27,7 +27,6 @@ mod stringpairlist;
 pub use stringpairlist::{
     StringPair,
     StringPairListItem,
-    StringPairList,
 };
 
 // Transforms an error from some error type to the pep::Error.
