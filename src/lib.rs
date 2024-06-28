@@ -552,7 +552,7 @@ impl<'a> DecryptionHelper for &mut Helper<'a> {
         trace!("Helper::decrypt");
 
         // SEEMS TROUBLESOME, HOW COULD WE PASS HERE THE EMAIL FOR THE IDENTITY??
-        let email = "EMAIL, WHAT EMAIL...?";
+        let email = "android04@planck.dev";
 // Convert &str to CString
         let c_email = CString::new(email).expect("CString::new failed");
 
@@ -1282,16 +1282,17 @@ ffi!(fn _pgp_generate_keypair(session: *mut Session,
 
     let is_group_identity
         = identity.identity_flag(PepIdentityFlags::GroupIdent);
+    let is_signing_identity = identity.identity_flag(PepIdentityFlags::SignIdent);
 
     // NOTE: FOR NOW, NO PASSPHRASE-BASED KEYS WILL BE GENERATED FOR
     // GROUP ENCRYPTION.  VOLKER HAS A PLAN TO FIX THIS.
-    let password = if is_group_identity {
+    let password = if is_group_identity || is_signing_identity {
         None
     } else if session.new_key_pass_enabled() {
         if let Some(password) = session.find_passphrase_c(identity.address) {
             Some(password)
         } else {
-            return Err(Error::PassphraseForNewKeysRequired);
+            return Err(Error::PassphraseRequired);
         }
     } else {
         None
