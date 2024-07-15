@@ -23,7 +23,6 @@ use libc::{
     c_char,
     c_uint,
     size_t,
-    time_t,
 };
 
 use chrono::LocalResult;
@@ -1260,10 +1259,10 @@ ffi!(fn pgp_encrypt_and_sign(session: *mut Session,
         session, keylist, ptext, psize, ctextp, csizep, true)
 });
 
-// PEP_STATUS _pgp_generate_keypair(PEP_SESSION session, pEp_identity *identity, time_t when)
+// PEP_STATUS _pgp_generate_keypair(PEP_SESSION session, pEp_identity *identity, int64_t when)
 ffi!(fn _pgp_generate_keypair(session: *mut Session,
                               identity: *mut PepIdentity,
-                              when: time_t)
+                              when: i64)
     -> Result<()>
 {
     let session = Session::as_mut(session)?;
@@ -2078,10 +2077,10 @@ fn _pgp_key_expired(vc: &ValidCert) -> bool
 }
 
 // PEP_STATUS pgp_key_expired(PEP_SESSION session, const char *fpr,
-//                            const time_t when, bool *expired)
+//                            const int64_t when, bool *expired)
 ffi!(fn pgp_key_expired(session: *mut Session,
                         fpr: *const c_char,
-                        when: time_t,
+                        when: i64,
                         expiredp: *mut bool)
     -> Result<()>
 {
@@ -2299,10 +2298,10 @@ ffi!(fn pgp_get_key_rating(session: *mut Session, fpr: *const c_char,
     Ok(())
 });
 
-// PEP_STATUS pgp_key_created(PEP_SESSION session, const char *fpr, time_t *created)
+// PEP_STATUS pgp_key_created(PEP_SESSION session, const char *fpr, int64_t *created)
 ffi!(fn pgp_key_created(session: *mut Session,
                         fpr: *const c_char,
-                        createdp: *mut time_t)
+                        createdp: *mut i64)
     -> Result<()>
 {
     let session = Session::as_mut(session)?;
@@ -2317,7 +2316,7 @@ ffi!(fn pgp_key_created(session: *mut Session,
         UnknownError,
         "Creation time out of range")?.as_secs();
 
-    *createdp = t as time_t;
+    *createdp = t as i64;
 
     Ok(())
 });
