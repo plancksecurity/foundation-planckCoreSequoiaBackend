@@ -61,6 +61,13 @@ INSTALL?=install
 .PHONY: all build install uninstall test clean
 all: build
 
+# Assuming linking to Botan, the c++ standard library is needed,
+# and for a full static build will need to resolve calls to it.
+# Linking to it dynamically is the best choice on macOS.
+ifeq ($(PLATFORM),Darwin)
+    RUSTFLAGS+=-l dylib=c++
+endif
+
 build:
 	$(CARGO) build $(CARGO_FLAGS)
 
