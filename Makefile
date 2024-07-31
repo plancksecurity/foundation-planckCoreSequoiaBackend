@@ -11,12 +11,12 @@ BUILD?=_build
 # Build config overrides
 -include ./local.conf
 
-ifeq ($(ARCH), arm64)
+ifeq ($(MACOS_ARCH), arm64)
     ARCH_NAME=aarch64-apple-darwin
     CARGO_FLAGS+= --target $(ARCH_NAME)
     TARGET_DIR=$(ARCH_NAME)
 else
-    ifeq ($(ARCH), x64)
+    ifeq ($(MACOS_ARCH), x64)
         ARCH_NAME=x86_64-apple-darwin
         CARGO_FLAGS+= --target $(ARCH_NAME)
         TARGET_DIR=$(ARCH_NAME)
