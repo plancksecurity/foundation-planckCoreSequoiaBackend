@@ -27,7 +27,7 @@ memmem = "0.1"
 memoffset = "0.9"
 # When bumping the version of Sequoia search the code for XXX to find
 # spots where we can take advantage of new features.
-sequoia-openpgp = { version = "1.16", default-features = false, features = [ "compression" ] }
+sequoia-openpgp = { version = "1.21", default-features = false, features = [ "compression" ] }
 thiserror = "1"
 log = {version = "0.4.20"}
 [target.'cfg(target_os = "android")'.dependencies]
