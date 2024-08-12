@@ -683,8 +683,8 @@ impl Keystore {
                 for ua in vc.userids() {
                     let uid = if let Ok(Some(email)) = ua.email_normalized() {
                         email
-                    } else if let Ok(Some(uri)) = ua.uri2().map(|opt| opt.map(|s| s.to_string())) {
-                        uri
+                    } else if let Ok(Some(uri)) = ua.uri2() {
+                        uri.to_owned() 
                     } else {
                         continue;
                     };
