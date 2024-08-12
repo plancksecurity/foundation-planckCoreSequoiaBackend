@@ -72,7 +72,7 @@ use openpgp::policy::NullPolicy;
 use openpgp::serialize::{
     stream::{
         Armorer,
-        Encryptor,
+        Encryptor2,
         LiteralWriter,
         Message,
         Recipient,
@@ -1201,7 +1201,7 @@ fn pgp_encrypt_sign_optional(
         "Setting up armorer")?;
 
     let mut message = wrap_err!(
-        Encryptor::for_recipients(message, recipients).build(),
+        Encryptor2::for_recipients(message, recipients).build(),
         UnknownError,
         "Setting up encryptor")?;
 
