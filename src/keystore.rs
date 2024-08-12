@@ -109,11 +109,11 @@ impl Keystore {
 
         let a_email = a_userid
             .email_normalized()
-            .or_else(|_| a_userid.uri2())
+            .or_else(|_| a_userid.uri2().map(|opt| opt.map(|s| s.to_string())) )
             .ok();
         let b_email = b_userid
             .email_normalized()
-            .or_else(|_| b_userid.uri2())
+            .or_else(|_| b_userid.uri2().map(|opt| opt.map(|s| s.to_string())) )
             .ok();
 
         match (a_email, b_email) {
@@ -683,7 +683,7 @@ impl Keystore {
                 for ua in vc.userids() {
                     let uid = if let Ok(Some(email)) = ua.email_normalized() {
                         email
-                    } else if let Ok(Some(uri)) = ua.uri2() {
+                    } else if let Ok(Some(uri)) = ua.uri2().map(|opt| opt.map(|s| s.to_string())) {
                         uri
                     } else {
                         continue;
