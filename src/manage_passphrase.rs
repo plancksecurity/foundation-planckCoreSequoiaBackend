@@ -39,16 +39,12 @@ ffi!(
 
         let remove_passphrase = new_passphrase.is_empty();
 
-        let new_passphrase = Password::from(new_passphrase);
-
         let cert = decrypt_cert(cert, old_passphrase)?;
 
         let cert = if remove_passphrase {
             cert
         } else {
-            let encrypted_packets = encrypted_packets(&cert, &new_passphrase)?;
-            cert.insert_packets(encrypted_packets)
-                .map_err(|_| illegal_value("cannot not re-insert encrypted packets"))?
+            encrypt_cert(cert, passphrase)?
         };
 
         // The way `cert_save` handles certificate merging makes this step necessary.
