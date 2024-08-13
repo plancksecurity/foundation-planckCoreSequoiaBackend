@@ -69,10 +69,11 @@ ffi!(
     }
 );
 
-pub fn decrypt_cert(cert: &Cert, passphrase: *const c_char) -> Result<()> {
+pub fn decrypt_cert(cert: &Cert, passphrase: *const c_char) -> Result<Cert> {
     let have_passphrase = unsafe { passphrase.as_ref() }.is_some();
     if !have_passphrase {
         // nothing to do
+        Ok(cert.clone())
     } else {
         let passphrase = unsafe { check_cstr!(passphrase) }
             .to_str()
@@ -80,8 +81,12 @@ pub fn decrypt_cert(cert: &Cert, passphrase: *const c_char) -> Result<()> {
             .map(Password::from)?;
 
         let decrypted_packets = decrypted_packets(&cert, &passphrase)?;
+        let cert = cert
+            .clone()
+            .insert_packets(decrypted_packets)
+            .map_err(|_| illegal_value("cannot not re-insert decrypted packets"))?;
+        Ok(cert)
     }
-    Ok(())
 }
 
 fn illegal_value(str: &str) -> Error {
