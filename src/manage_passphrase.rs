@@ -40,16 +40,8 @@ ffi!(
         let remove_passphrase = new_passphrase.is_empty();
 
         let new_passphrase = Password::from(new_passphrase);
-        let old_passphrase = unsafe { check_cstr!(old_passphrase) }
-            .to_str()
-            .map_err(|_| illegal_value("passphrase cannot be converted to string"))
-            .map(Password::from)?;
 
-        let decrypted_packets = decrypted_packets(&cert, &old_passphrase)?;
-
-        let cert = cert
-            .insert_packets(decrypted_packets)
-            .map_err(|_| illegal_value("cannot not re-insert decrypted packets"))?;
+        let cert = decrypt_cert(cert, old_passphrase)?;
 
         let cert = if remove_passphrase {
             cert
