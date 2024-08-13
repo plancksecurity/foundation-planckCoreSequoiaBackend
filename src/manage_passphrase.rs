@@ -119,7 +119,7 @@ fn encrypted_packets(cert: &Cert, passphrase: &Password) -> Result<Vec<Packet>> 
         },
         |k| {
             k.encrypt_secret(passphrase)
-                .map_err(|_| illegal_value("cannot encrypt primary key"))
+                .map_err(|_| illegal_value("cannot encrypt sub key"))
         },
     )?;
     Ok(packets)
