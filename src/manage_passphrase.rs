@@ -69,6 +69,21 @@ ffi!(
     }
 );
 
+pub fn decrypt_cert(cert: &Cert, passphrase: *const c_char) -> Result<()> {
+    let have_passphrase = unsafe { passphrase.as_ref() }.is_some();
+    if !have_passphrase {
+        // nothing to do
+    } else {
+        let passphrase = unsafe { check_cstr!(passphrase) }
+            .to_str()
+            .map_err(|_| illegal_value("passphrase cannot be converted to string"))
+            .map(Password::from)?;
+
+        let decrypted_packets = decrypted_packets(&cert, &passphrase)?;
+    }
+    Ok(())
+}
+
 fn illegal_value(str: &str) -> Error {
     Error::IllegalValue(str.to_string())
 }
