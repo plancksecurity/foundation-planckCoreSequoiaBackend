@@ -1715,11 +1715,13 @@ ffi!(fn pgp_import_keydata(session: *mut Session,
 
 // PEP_STATUS pgp_export_keydata(
 //         PEP_SESSION session, const char *fpr, char **keydata, size_t *size,
+//         const char *passphrase,
 //         bool secret)
 ffi!(fn pgp_export_keydata(session: *mut Session,
                            fpr: *const c_char,
                            keydatap: *mut *mut c_char,
                            keydata_lenp: *mut size_t,
+                           _passphrase: *const c_char,
                            secret: bool)
     -> Result<()>
 {
