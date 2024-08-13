@@ -69,6 +69,24 @@ ffi!(
     }
 );
 
+pub fn encrypt_cert(cert: Cert, passphrase: *const c_char) -> Result<Cert> {
+    let have_passphrase = unsafe { passphrase.as_ref() }.is_some();
+    if !have_passphrase {
+        // nothing to do
+        Ok(cert)
+    } else {
+        let passphrase = unsafe { check_cstr!(passphrase) }
+            .to_str()
+            .map_err(|_| illegal_value("new passphrase cannot be converted to string"))?;
+
+        let passphrase = Password::from(passphrase);
+        let encrypted_packets = encrypted_packets(&cert, &passphrase)?;
+        let cert = cert.insert_packets(encrypted_packets)
+            .map_err(|_| illegal_value("cannot not re-insert encrypted packets"))?;
+        Ok(cert)
+    }
+}
+
 pub fn decrypt_cert(cert: Cert, passphrase: *const c_char) -> Result<Cert> {
     let have_passphrase = unsafe { passphrase.as_ref() }.is_some();
     if !have_passphrase {
