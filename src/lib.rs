@@ -1741,11 +1741,12 @@ ffi!(fn pgp_export_keydata(session: *mut Session,
 
     let mut keydata = Vec::new();
     if secret {
-        // No-op if there is no passphrase (NULL).
-        // If there is a passphrase, only encrypted parts are decrypted.
+        // (Re-)encrypt with the given `passphrase`. This allows both cases to work:
+        // 1. not encrypted -> encrypted
+        // 2. encrypted -> encrypted
+        // In the 2nd case, the decryption will fail if (for whatever reason)
+        // the original encryption passphrase differs from the given `passphrase`.
         let cert = decrypt_cert(cert, passphrase)?;
-
-        // No-op if there is no passphrase (NULL).
         let cert = encrypt_cert(cert, passphrase)?;
 
         wrap_err!(
