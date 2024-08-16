@@ -29,6 +29,7 @@ use chrono::LocalResult;
 use chrono::Utc;
 use chrono::TimeZone;
 
+use manage_passphrase::{decrypt_cert, encrypt_cert};
 use memmem::{Searcher, TwoWaySearcher};
 
 use sequoia_openpgp as openpgp;
@@ -1715,11 +1716,13 @@ ffi!(fn pgp_import_keydata(session: *mut Session,
 
 // PEP_STATUS pgp_export_keydata(
 //         PEP_SESSION session, const char *fpr, char **keydata, size_t *size,
+//         const char *passphrase,
 //         bool secret)
 ffi!(fn pgp_export_keydata(session: *mut Session,
                            fpr: *const c_char,
                            keydatap: *mut *mut c_char,
                            keydata_lenp: *mut size_t,
+                           passphrase: *const c_char,
                            secret: bool)
     -> Result<()>
 {
@@ -1738,6 +1741,14 @@ ffi!(fn pgp_export_keydata(session: *mut Session,
 
     let mut keydata = Vec::new();
     if secret {
+        // (Re-)encrypt with the given `passphrase`. This allows both cases to work:
+        // 1. not encrypted -> encrypted
+        // 2. encrypted -> encrypted
+        // In the 2nd case, the decryption will fail if (for whatever reason)
+        // the original encryption passphrase differs from the given `passphrase`.
+        let cert = decrypt_cert(cert, passphrase)?;
+        let cert = encrypt_cert(cert, passphrase)?;
+
         wrap_err!(
             cert.as_tsk().armored().serialize(&mut keydata),
             UnknownError,
