@@ -39,24 +39,12 @@ ffi!(
 
         let remove_passphrase = new_passphrase.is_empty();
 
-        let new_passphrase = Password::from(new_passphrase);
-        let old_passphrase = unsafe { check_cstr!(old_passphrase) }
-            .to_str()
-            .map_err(|_| illegal_value("passphrase cannot be converted to string"))
-            .map(Password::from)?;
-
-        let decrypted_packets = decrypted_packets(&cert, &old_passphrase)?;
-
-        let cert = cert
-            .insert_packets(decrypted_packets)
-            .map_err(|_| illegal_value("cannot not re-insert decrypted packets"))?;
+        let cert = decrypt_cert(cert, old_passphrase)?;
 
         let cert = if remove_passphrase {
             cert
         } else {
-            let encrypted_packets = encrypted_packets(&cert, &new_passphrase)?;
-            cert.insert_packets(encrypted_packets)
-                .map_err(|_| illegal_value("cannot not re-insert encrypted packets"))?
+            encrypt_cert(cert, passphrase)?
         };
 
         // The way `cert_save` handles certificate merging makes this step necessary.
@@ -68,6 +56,43 @@ ffi!(
         Ok(())
     }
 );
+
+pub fn encrypt_cert(cert: Cert, passphrase: *const c_char) -> Result<Cert> {
+    let have_passphrase = unsafe { passphrase.as_ref() }.is_some();
+    if !have_passphrase {
+        // nothing to do
+        Ok(cert)
+    } else {
+        let passphrase = unsafe { check_cstr!(passphrase) }
+            .to_str()
+            .map_err(|_| illegal_value("new passphrase cannot be converted to string"))?;
+
+        let passphrase = Password::from(passphrase);
+        let encrypted_packets = encrypted_packets(&cert, &passphrase)?;
+        let cert = cert.insert_packets(encrypted_packets)
+            .map_err(|_| illegal_value("cannot not re-insert encrypted packets"))?;
+        Ok(cert)
+    }
+}
+
+pub fn decrypt_cert(cert: Cert, passphrase: *const c_char) -> Result<Cert> {
+    let have_passphrase = unsafe { passphrase.as_ref() }.is_some();
+    if !have_passphrase {
+        // nothing to do
+        Ok(cert)
+    } else {
+        let passphrase = unsafe { check_cstr!(passphrase) }
+            .to_str()
+            .map_err(|_| illegal_value("passphrase cannot be converted to string"))
+            .map(Password::from)?;
+
+        let decrypted_packets = decrypted_packets(&cert, &passphrase)?;
+        let cert = cert
+            .insert_packets(decrypted_packets)
+            .map_err(|_| illegal_value("cannot not re-insert decrypted packets"))?;
+        Ok(cert)
+    }
+}
 
 fn illegal_value(str: &str) -> Error {
     Error::IllegalValue(str.to_string())
@@ -119,7 +144,7 @@ fn encrypted_packets(cert: &Cert, passphrase: &Password) -> Result<Vec<Packet>> 
         },
         |k| {
             k.encrypt_secret(passphrase)
-                .map_err(|_| illegal_value("cannot encrypt primary key"))
+                .map_err(|_| illegal_value("cannot encrypt sub key"))
         },
     )?;
     Ok(packets)
