@@ -109,11 +109,11 @@ impl Keystore {
 
         let a_email = a_userid
             .email_normalized()
-            .or_else(|_| a_userid.uri())
+            .or_else(|_| a_userid.uri2().map(|opt| opt.map(|s| s.to_string())) )
             .ok();
         let b_email = b_userid
             .email_normalized()
-            .or_else(|_| b_userid.uri())
+            .or_else(|_| b_userid.uri2().map(|opt| opt.map(|s| s.to_string())) )
             .ok();
 
         match (a_email, b_email) {
@@ -609,8 +609,8 @@ impl Keystore {
             // cert.as_tsk() == other.as_tsk().
             match (current.is_tsk(), cert.is_tsk()) {
                 (true, true) =>
-                    current.clone().into_packets().collect::<Vec<_>>()
-                      != cert.clone().into_packets().collect::<Vec<_>>(),
+                    current.clone().into_packets2().collect::<Vec<_>>()
+                      != cert.clone().into_packets2().collect::<Vec<_>>(),
                 (true, false) => true,
                 (false, true) => true,
                 (false, false) => current != &cert,
@@ -683,8 +683,8 @@ impl Keystore {
                 for ua in vc.userids() {
                     let uid = if let Ok(Some(email)) = ua.email_normalized() {
                         email
-                    } else if let Ok(Some(uri)) = ua.uri() {
-                        uri
+                    } else if let Ok(Some(uri)) = ua.uri2() {
+                        uri.to_owned() 
                     } else {
                         continue;
                     };
@@ -699,7 +699,7 @@ impl Keystore {
                     cache = vc.is_tsk();
                     if ident.is_none() {
                         ident = Some(PepIdentityTemplate::new(
-                            &uid, fpr.clone(), ua.name().unwrap_or(None)));
+                            &uid, fpr.clone(), ua.name2().unwrap_or(None)));
                     }
                 }
             }

@@ -42,7 +42,7 @@ fn main() -> Result<(), std::io::Error> {
         .replace("REQUIRES",
                  if cfg!(feature = "crypto-botan2"){
                      "botan-2"
-                 } else if cfg!(feature = "crypto-botan3") || cfg!(feature = "crypto-botan") {
+                 } else if cfg!(feature = "crypto-botan") {
                      "botan-3"
                  } else if cfg!(feature = "crypto-nettle") {
                      "nettle"
