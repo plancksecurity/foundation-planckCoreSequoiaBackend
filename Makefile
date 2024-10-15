@@ -11,6 +11,16 @@ BUILD?=_build
 # Build config overrides
 -include ./local.conf
 
+ifeq ($(MACOS_ARCH), arm64)
+    ARCH_NAME=aarch64-apple-darwin
+    CARGO_FLAGS+= --target $(ARCH_NAME)
+    TARGET_DIR=$(ARCH_NAME)
+else ifeq ($(MACOS_ARCH), x64)
+    ARCH_NAME=x86_64-apple-darwin
+    CARGO_FLAGS+= --target $(ARCH_NAME)
+    TARGET_DIR=$(ARCH_NAME)
+endif
+
 # Make sure CARGO_TARGET_DIR is not set by the user -- it would be ignored.
 CARGO_TARGET_DIR?=
 ifneq ($(CARGO_TARGET_DIR),)
@@ -48,8 +58,8 @@ else
     $(error "build option 'DEBUG' must be 'release', 'debug' or 'maintainer'")
 endif
 
-LIB_DYNAMIC_PATH=$(CARGO_TARGET_DIR)/$(VARIANT_NAME)/$(LIB_NAME).$(DYNLIB_EXT)
-LIB_STATIC_PATH=$(CARGO_TARGET_DIR)/$(VARIANT_NAME)/$(LIB_NAME).a
+LIB_DYNAMIC_PATH=$(CARGO_TARGET_DIR)/$(ARCH_NAME)/$(VARIANT_NAME)/$(LIB_NAME).$(DYNLIB_EXT)
+LIB_STATIC_PATH=$(CARGO_TARGET_DIR)/$(ARCH_NAME)/$(VARIANT_NAME)/$(LIB_NAME).a
 PKGCONFIG_PATH=$(CARGO_TARGET_DIR)/$(VARIANT_NAME)/pep_engine_sequoia_backend.pc
 LIB_DIR=$(PREFIX)/lib/
 PKGCONFIG_DIR=$(PREFIX)/share/pkgconfig/
@@ -60,6 +70,13 @@ INSTALL?=install
 
 .PHONY: all build install uninstall test clean
 all: build
+
+# Assuming linking to Botan, the c++ standard library is needed,
+# and for a full static build will need to resolve calls to it.
+# Linking to it dynamically is the best choice on macOS.
+ifeq ($(PLATFORM),Darwin)
+    RUSTFLAGS+=-l dylib=c++
+endif
 
 build:
 	$(CARGO) build $(CARGO_FLAGS)
