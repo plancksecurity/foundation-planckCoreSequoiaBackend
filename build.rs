@@ -68,6 +68,7 @@ fn main() -> Result<(), std::io::Error> {
 
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=pep_engine_sequoia_backend.pc.in");
+	println!(r"cargo:rustc-link-search=C:\Users\runneradmin\install\lib");
 
     eprintln!("Generated {:?} with:\n{}\nEOF", pc, content);
 
